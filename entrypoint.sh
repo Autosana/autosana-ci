@@ -27,7 +27,8 @@ if [ -z "$UPLOAD_URL" ] || [ "$UPLOAD_URL" == "null" ]; then
   exit 1
 fi
 
-# Step 2: Find APK/IPA
+# Step 2: Find APK
+# TODO: Handle iOS .app files/zip
 APK_PATH=""
 for path in \
   android/app/build/outputs/apk/release/$FILENAME \
@@ -47,14 +48,27 @@ if [ -z "$APK_PATH" ]; then
 fi
 
 # Step 3: Upload
-curl -X PUT "$UPLOAD_URL" \
+echo "Uploading $APK_PATH..."
+UPLOAD_RESPONSE=$(curl -s -X PUT "$UPLOAD_URL" \
   -H "Content-Type: application/octet-stream" \
-  --data-binary @"$APK_PATH"
+  --data-binary @"$APK_PATH")
+
+echo "Upload response: $UPLOAD_RESPONSE"
 
 # Step 4: Confirm
-curl -X POST https://backend.autosana.ai/api/ci/confirm-upload \
+echo "Confirming upload..."
+CONFIRM_RESPONSE=$(curl -s -X POST https://backend.autosana.ai/api/ci/confirm-upload \
   -H "X-API-Key: $AUTOSANA_KEY" \
   -H "Content-Type: application/json" \
-  -d "{\"bundle_id\": \"$BUNDLE_ID\", \"platform\": \"$PLATFORM\", \"uploaded_file_path\": \"$FILE_PATH\"}"
+  -d "{\"bundle_id\": \"$BUNDLE_ID\", \"platform\": \"$PLATFORM\", \"uploaded_file_path\": \"$FILE_PATH\"}")
+
+echo "Confirm response: $CONFIRM_RESPONSE"
+
+# Check if confirmation was successful
+if echo "$CONFIRM_RESPONSE" | jq -e '.detail' > /dev/null 2>&1; then
+  ERROR_DETAIL=$(echo "$CONFIRM_RESPONSE" | jq -r '.detail')
+  echo "❌ Upload failed: $ERROR_DETAIL"
+  exit 1
+fi
 
 echo "✅ Upload complete."
