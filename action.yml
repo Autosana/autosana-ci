@@ -10,8 +10,8 @@ inputs:
   platform:
     description: 'Platform (e.g., android, ios)'
     required: true
-  filename:
-    description: 'Name of the APK/IPA file'
+  build-path:
+    description: 'Full path to the APK/IPA file (e.g., android/app/build/outputs/apk/release/app-release.apk)'
     required: true
 runs:
   using: 'composite'
@@ -24,4 +24,4 @@ runs:
         AUTOSANA_KEY: ${{ inputs.api-key }}
         BUNDLE_ID: ${{ inputs.bundle-id }}
         PLATFORM: ${{ inputs.platform }}
-        FILENAME: ${{ inputs.filename }}
+        BUILD_PATH: ${{ inputs.build-path }}
