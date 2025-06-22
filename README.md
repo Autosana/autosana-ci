@@ -2,7 +2,7 @@
 CI integration to upload new builds and trigger flows from github workflows
 
 ```
-- uses: autosana/ci-upload-action@v1
+- uses: autosana/autosana-ci@v1
   with:
     api-key: ${{ secrets.AUTOSANA_KEY }}
     bundle-id: ${{ secrets.BUNDLE_ID }}
