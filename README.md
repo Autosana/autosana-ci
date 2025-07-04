@@ -7,5 +7,5 @@ CI integration to upload new builds and trigger flows from github workflows
     api-key: ${{ secrets.AUTOSANA_KEY }}
     bundle-id: com.example.app
     platform: android
-    filename: app-release.apk
+    build-path: build/app/outputs/flutter-apk/app-release.apk
 ```
