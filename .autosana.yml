@@ -1,0 +1,13 @@
+platform: unknown
+build:
+  android:
+    flavor: debug
+    architecture: x86_64
+    build_command: ./gradlew assembleDebug
+    output_path: app/build/outputs/apk/debug/app-debug.apk
+  ios:
+    scheme: YourApp
+    simulator: iPhone 15
+    build_command: xcodebuild -workspace *.xcworkspace -scheme * -configuration Debug
+      -destination 'platform=iOS Simulator,name=iPhone 15' build
+    output_path: build/Build/Products/Debug-iphonesimulator/*.app
