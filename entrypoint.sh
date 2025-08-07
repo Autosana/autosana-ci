@@ -78,8 +78,19 @@ echo "📡 API Response:"
 echo "$RESPONSE"
 echo ""
 
-UPLOAD_URL=$(echo "$RESPONSE" | jq -r '.upload_url')
-FILE_PATH=$(echo "$RESPONSE" | jq -r '.file_path')
+# Extract JSON response (everything before the first newline)
+JSON_RESPONSE=$(echo "$RESPONSE" | head -n 1)
+HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP Status:" | cut -d' ' -f3)
+TOTAL_TIME=$(echo "$RESPONSE" | grep "Total Time:" | cut -d' ' -f3)
+
+echo "🔍 Parsed response:"
+echo "   JSON Response: $JSON_RESPONSE"
+echo "   HTTP Status: $HTTP_STATUS"
+echo "   Total Time: ${TOTAL_TIME}s"
+echo ""
+
+UPLOAD_URL=$(echo "$JSON_RESPONSE" | jq -r '.upload_url')
+FILE_PATH=$(echo "$JSON_RESPONSE" | jq -r '.file_path')
 
 echo "🔍 Extracted values:"
 echo "   UPLOAD_URL: $UPLOAD_URL"
@@ -173,13 +184,22 @@ echo "   Duration: ${CONFIRM_DURATION} seconds"
 echo "   Response: $CONFIRM_RESPONSE"
 echo ""
 
+# Extract JSON response for confirmation
+CONFIRM_JSON_RESPONSE=$(echo "$CONFIRM_RESPONSE" | head -n 1)
+CONFIRM_HTTP_STATUS=$(echo "$CONFIRM_RESPONSE" | grep "HTTP Status:" | cut -d' ' -f3)
+
+echo "🔍 Parsed confirm response:"
+echo "   JSON Response: $CONFIRM_JSON_RESPONSE"
+echo "   HTTP Status: $CONFIRM_HTTP_STATUS"
+echo ""
+
 # Check if confirmation was successful
-if echo "$CONFIRM_RESPONSE" | jq -e '.detail' > /dev/null 2>&1; then
-  ERROR_DETAIL=$(echo "$CONFIRM_RESPONSE" | jq -r '.detail')
+if echo "$CONFIRM_JSON_RESPONSE" | jq -e '.detail' > /dev/null 2>&1; then
+  ERROR_DETAIL=$(echo "$CONFIRM_JSON_RESPONSE" | jq -r '.detail')
   echo "❌ ERROR: Upload confirmation failed"
   echo "   Error detail: $ERROR_DETAIL"
   echo "   Full response: $CONFIRM_RESPONSE"
-  echo "   HTTP Status: $(echo "$CONFIRM_RESPONSE" | grep 'HTTP Status:' || echo 'Unknown')"
+  echo "   HTTP Status: $CONFIRM_HTTP_STATUS"
   exit 1
 fi
 
