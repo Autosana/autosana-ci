@@ -30,18 +30,42 @@ echo "✅ All required environment variables are set"
 echo ""
 
 # Install jq
-echo "📦 Installing jq for JSON parsing..."
+echo "📦 Ensuring jq is available..."
 echo "   Current directory: $(pwd)"
-echo "   Available packages: $(apt list --installed | grep jq || echo 'jq not installed')"
 
-sudo apt-get update
-sudo apt-get install -y jq
-
-if command -v jq &> /dev/null; then
-    echo "✅ jq installed successfully: $(jq --version)"
+if command -v jq >/dev/null 2>&1; then
+  echo "✅ jq already installed: $(jq --version)"
 else
+  OS_NAME="$(uname -s)"
+  echo "   jq not found. Attempting installation for OS: $OS_NAME"
+  if [ "$OS_NAME" = "Darwin" ]; then
+    if command -v brew >/dev/null 2>&1; then
+      brew install jq
+    else
+      echo "❌ Homebrew not found on macOS runner; cannot install jq."
+      echo "   Please install Homebrew or preinstall jq."
+      exit 1
+    fi
+  elif command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get update
+    sudo apt-get install -y jq
+  elif command -v apk >/dev/null 2>&1; then
+    sudo apk add --no-cache jq || apk add --no-cache jq
+  elif command -v yum >/dev/null 2>&1; then
+    sudo yum install -y jq
+  elif command -v dnf >/dev/null 2>&1; then
+    sudo dnf install -y jq
+  else
+    echo "❌ Unsupported environment. Please install jq manually."
+    exit 1
+  fi
+
+  if command -v jq >/dev/null 2>&1; then
+    echo "✅ jq installed successfully: $(jq --version)"
+  else
     echo "❌ Failed to install jq"
     exit 1
+  fi
 fi
 echo ""
 
@@ -62,8 +86,8 @@ echo "🔄 Step 1: Starting upload process..."
 echo "   API Endpoint: https://backend.autosana.ai/api/ci/start-upload"
 echo "   Request Payload:"
 echo "   {"
-echo "     \"bundle_id\": \"$BUNDLE_ID\","
-echo "     \"platform\": \"$PLATFORM\","
+echo "     \"bundle_id\": \"$BUNDLE_ID\"," 
+echo "     \"platform\": \"$PLATFORM\"," 
 echo "     \"filename\": \"$FILENAME\""
 echo "   }"
 echo ""
@@ -164,8 +188,8 @@ echo "🔄 Step 4: Confirming upload..."
 echo "   API Endpoint: https://backend.autosana.ai/api/ci/confirm-upload"
 echo "   Request Payload:"
 echo "   {"
-echo "     \"bundle_id\": \"$BUNDLE_ID\","
-echo "     \"platform\": \"$PLATFORM\","
+echo "     \"bundle_id\": \"$BUNDLE_ID\"," 
+echo "     \"platform\": \"$PLATFORM\"," 
 echo "     \"uploaded_file_path\": \"$FILE_PATH\""
 echo "   }"
 echo ""
