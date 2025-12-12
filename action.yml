@@ -1,20 +1,24 @@
-name: 'Autosana CI Upload'
-description: 'Upload your built mobile app to Autosana via CI'
+name: "Autosana CI Upload"
+description: "Upload your built mobile app to Autosana via CI"
 inputs:
   api-key:
-    description: 'Your Autosana API key'
+    description: "Your Autosana API key"
     required: true
   bundle-id:
-    description: 'Your app’s bundle ID'
+    description: "Your app's bundle ID"
     required: true
   platform:
-    description: 'Platform (e.g., android, ios)'
+    description: "Platform (e.g., android, ios)"
     required: true
   build-path:
-    description: 'Full path to the APK/IPA file (e.g., android/app/build/outputs/apk/release/app-release.apk)'
+    description: "Full path to the APK/IPA file (e.g., android/app/build/outputs/apk/release/app-release.apk)"
     required: true
+  api-url:
+    description: "API base URL (for testing with dev/staging). Default: https://backend.autosana.ai"
+    required: false
+    default: "https://backend.autosana.ai"
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - run: chmod +x ${{ github.action_path }}/entrypoint.sh
       shell: bash
@@ -25,3 +29,4 @@ runs:
         BUNDLE_ID: ${{ inputs.bundle-id }}
         PLATFORM: ${{ inputs.platform }}
         BUILD_PATH: ${{ inputs.build-path }}
+        AUTOSANA_API_URL: ${{ inputs.api-url }}

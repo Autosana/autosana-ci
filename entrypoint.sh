@@ -5,7 +5,25 @@ echo "🚀 ========================================"
 echo "🚀 Autosana CI Upload Script Starting"
 echo "🚀 ========================================"
 echo "📅 Timestamp: $(date)"
-echo "🔧 Script Version: 1.0"
+echo "🔧 Script Version: 2.0"
+echo ""
+
+# API Base URL - can be overridden for testing (staging, ngrok, etc.)
+# Default: production
+API_BASE_URL="${AUTOSANA_API_URL:-https://backend.autosana.ai}"
+echo "🌐 API Base URL: $API_BASE_URL"
+echo ""
+
+# Capture GitHub environment variables for PR integration
+# These are automatically available in GitHub Actions
+COMMIT_SHA="${GITHUB_SHA:-}"
+BRANCH_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+REPO_FULL_NAME="${GITHUB_REPOSITORY:-}"
+
+echo "📦 Git Metadata (for PR integration):"
+echo "   COMMIT_SHA: ${COMMIT_SHA:-not set}"
+echo "   BRANCH_NAME: ${BRANCH_NAME:-not set}"
+echo "   REPO_FULL_NAME: ${REPO_FULL_NAME:-not set}"
 echo ""
 
 # Check required inputs
@@ -83,7 +101,7 @@ echo ""
 
 # Step 1: Start Upload
 echo "🔄 Step 1: Starting upload process..."
-echo "   API Endpoint: https://backend.autosana.ai/api/ci/start-upload"
+echo "   API Endpoint: $API_BASE_URL/api/ci/start-upload"
 echo "   Request Payload:"
 echo "   {"
 echo "     \"bundle_id\": \"$BUNDLE_ID\"," 
@@ -92,7 +110,7 @@ echo "     \"filename\": \"$FILENAME\""
 echo "   }"
 echo ""
 
-RESPONSE=$(curl -s -X POST https://backend.autosana.ai/api/ci/start-upload \
+RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/start-upload" \
   -H "X-API-Key: $AUTOSANA_KEY" \
   -H "Content-Type: application/json" \
   -d "{\"bundle_id\": \"$BUNDLE_ID\", \"platform\": \"$PLATFORM\", \"filename\": \"$FILENAME\"}" \
@@ -185,20 +203,30 @@ echo ""
 
 # Step 4: Confirm
 echo "🔄 Step 4: Confirming upload..."
-echo "   API Endpoint: https://backend.autosana.ai/api/ci/confirm-upload"
+echo "   API Endpoint: $API_BASE_URL/api/ci/confirm-upload"
+
+# Build the confirm payload with git metadata for PR integration
+CONFIRM_PAYLOAD=$(cat <<EOF
+{
+  "bundle_id": "$BUNDLE_ID",
+  "platform": "$PLATFORM",
+  "uploaded_file_path": "$FILE_PATH",
+  "commit_sha": "$COMMIT_SHA",
+  "branch_name": "$BRANCH_NAME",
+  "repo_full_name": "$REPO_FULL_NAME"
+}
+EOF
+)
+
 echo "   Request Payload:"
-echo "   {"
-echo "     \"bundle_id\": \"$BUNDLE_ID\"," 
-echo "     \"platform\": \"$PLATFORM\"," 
-echo "     \"uploaded_file_path\": \"$FILE_PATH\""
-echo "   }"
+echo "$CONFIRM_PAYLOAD" | jq '.'
 echo ""
 
 CONFIRM_START_TIME=$(date +%s)
-CONFIRM_RESPONSE=$(curl -s -X POST https://backend.autosana.ai/api/ci/confirm-upload \
+CONFIRM_RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/confirm-upload" \
   -H "X-API-Key: $AUTOSANA_KEY" \
   -H "Content-Type: application/json" \
-  -d "{\"bundle_id\": \"$BUNDLE_ID\", \"platform\": \"$PLATFORM\", \"uploaded_file_path\": \"$FILE_PATH\"}" \
+  -d "$CONFIRM_PAYLOAD" \
   -w "\nHTTP Status: %{http_code}\nTotal Time: %{time_total}s\n")
 CONFIRM_END_TIME=$(date +%s)
 CONFIRM_DURATION=$((CONFIRM_END_TIME - CONFIRM_START_TIME))
@@ -236,6 +264,9 @@ echo "   Bundle ID: $BUNDLE_ID"
 echo "   Platform: $PLATFORM"
 echo "   File: $FILENAME"
 echo "   File Path: $FILE_PATH"
+echo "   Commit SHA: ${COMMIT_SHA:-not set}"
+echo "   Branch: ${BRANCH_NAME:-not set}"
+echo "   Repository: ${REPO_FULL_NAME:-not set}"
 echo "   Total time: $((UPLOAD_DURATION + CONFIRM_DURATION)) seconds"
 echo "   Completed at: $(date)"
 echo ""
