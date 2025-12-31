@@ -14,21 +14,6 @@ API_BASE_URL="${AUTOSANA_API_URL:-https://backend.autosana.ai}"
 echo "🌐 API Base URL: $API_BASE_URL"
 echo ""
 
-# Capture GitHub environment variables for PR integration
-# These are automatically available in GitHub Actions
-# For pull_request events, GITHUB_SHA is a temporary merge commit that doesn't exist in the repo.
-# Since the repo is checked out (via actions/checkout), we use git rev-parse HEAD to get the actual commit.
-# This works for both PR events (gets PR head) and push events (gets pushed commit).
-COMMIT_SHA=$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")
-BRANCH_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-REPO_FULL_NAME="${GITHUB_REPOSITORY:-}"
-
-echo "📦 Git Metadata (for PR integration):"
-echo "   COMMIT_SHA: ${COMMIT_SHA:-not set}"
-echo "   BRANCH_NAME: ${BRANCH_NAME:-not set}"
-echo "   REPO_FULL_NAME: ${REPO_FULL_NAME:-not set}"
-echo ""
-
 # Check required inputs
 echo "🔍 Checking required environment variables..."
 echo "   AUTOSANA_KEY: ${AUTOSANA_KEY:0:10}... (${#AUTOSANA_KEY} chars)"
@@ -88,6 +73,20 @@ else
     exit 1
   fi
 fi
+echo ""
+
+# Capture GitHub environment variables for PR integration
+# For pull_request events, git rev-parse HEAD returns a merge commit SHA, not the PR head.
+# Extract the PR head SHA from the event payload instead.
+PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "$GITHUB_EVENT_PATH" 2>/dev/null)
+COMMIT_SHA="${PR_HEAD_SHA:-$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")}"
+BRANCH_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+REPO_FULL_NAME="${GITHUB_REPOSITORY:-}"
+
+echo "📦 Git Metadata (for PR integration):"
+echo "   COMMIT_SHA: ${COMMIT_SHA:-not set}"
+echo "   BRANCH_NAME: ${BRANCH_NAME:-not set}"
+echo "   REPO_FULL_NAME: ${REPO_FULL_NAME:-not set}"
 echo ""
 
 # Extract filename from build path for API calls
