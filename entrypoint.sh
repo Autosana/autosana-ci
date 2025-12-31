@@ -16,7 +16,10 @@ echo ""
 
 # Capture GitHub environment variables for PR integration
 # These are automatically available in GitHub Actions
-COMMIT_SHA="${GITHUB_SHA:-}"
+# For pull_request events, GITHUB_SHA is a temporary merge commit that doesn't exist in the repo.
+# Since the repo is checked out (via actions/checkout), we use git rev-parse HEAD to get the actual commit.
+# This works for both PR events (gets PR head) and push events (gets pushed commit).
+COMMIT_SHA=$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")
 BRANCH_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
 REPO_FULL_NAME="${GITHUB_REPOSITORY:-}"
 
