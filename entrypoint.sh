@@ -112,10 +112,16 @@ echo "     \"filename\": \"$FILENAME\""
 echo "   }"
 echo ""
 
+START_PAYLOAD=$(jq -n \
+  --arg bundle_id "$BUNDLE_ID" \
+  --arg platform "$PLATFORM" \
+  --arg filename "$FILENAME" \
+  '{bundle_id: $bundle_id, platform: $platform, filename: $filename}')
+
 RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/start-upload" \
   -H "X-API-Key: $AUTOSANA_KEY" \
   -H "Content-Type: application/json" \
-  -d "{\"bundle_id\": \"$BUNDLE_ID\", \"platform\": \"$PLATFORM\", \"filename\": \"$FILENAME\"}" \
+  -d "$START_PAYLOAD" \
   -w "\nHTTP Status: %{http_code}\nTotal Time: %{time_total}s\n")
 
 echo "📡 API Response:"
@@ -208,17 +214,21 @@ echo "🔄 Step 4: Confirming upload..."
 echo "   API Endpoint: $API_BASE_URL/api/ci/confirm-upload"
 
 # Build the confirm payload with git metadata for PR integration
-CONFIRM_PAYLOAD=$(cat <<EOF
-{
-  "bundle_id": "$BUNDLE_ID",
-  "platform": "$PLATFORM",
-  "uploaded_file_path": "$FILE_PATH",
-  "commit_sha": "$COMMIT_SHA",
-  "branch_name": "$BRANCH_NAME",
-  "repo_full_name": "$REPO_FULL_NAME"
-}
-EOF
-)
+CONFIRM_PAYLOAD=$(jq -n \
+  --arg bundle_id "$BUNDLE_ID" \
+  --arg platform "$PLATFORM" \
+  --arg file_path "$FILE_PATH" \
+  --arg commit_sha "$COMMIT_SHA" \
+  --arg branch_name "$BRANCH_NAME" \
+  --arg repo_full_name "$REPO_FULL_NAME" \
+  '{
+    bundle_id: $bundle_id,
+    platform: $platform,
+    uploaded_file_path: $file_path,
+    commit_sha: $commit_sha,
+    branch_name: $branch_name,
+    repo_full_name: $repo_full_name
+  }')
 
 echo "   Request Payload:"
 echo "$CONFIRM_PAYLOAD" | jq '.'
