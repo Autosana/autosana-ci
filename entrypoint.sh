@@ -139,6 +139,22 @@ echo "   HTTP Status: $HTTP_STATUS"
 echo "   Total Time: ${TOTAL_TIME}s"
 echo ""
 
+# Check HTTP status before parsing JSON
+if [ "$HTTP_STATUS" != "200" ]; then
+  echo "❌ ERROR: API request failed with HTTP status $HTTP_STATUS"
+  echo "   Response body: $JSON_RESPONSE"
+  echo "   This may indicate a server error or network issue."
+  echo "   Please check the Autosana API status and try again."
+  exit 1
+fi
+
+# Validate JSON before parsing
+if ! echo "$JSON_RESPONSE" | jq empty 2>/dev/null; then
+  echo "❌ ERROR: API returned invalid JSON"
+  echo "   Response body: $JSON_RESPONSE"
+  exit 1
+fi
+
 UPLOAD_URL=$(echo "$JSON_RESPONSE" | jq -r '.upload_url')
 FILE_PATH=$(echo "$JSON_RESPONSE" | jq -r '.file_path')
 
@@ -256,6 +272,22 @@ echo "🔍 Parsed confirm response:"
 echo "   JSON Response: $CONFIRM_JSON_RESPONSE"
 echo "   HTTP Status: $CONFIRM_HTTP_STATUS"
 echo ""
+
+# Check HTTP status before parsing JSON
+if [ "$CONFIRM_HTTP_STATUS" != "200" ]; then
+  echo "❌ ERROR: Confirm upload API request failed with HTTP status $CONFIRM_HTTP_STATUS"
+  echo "   Response body: $CONFIRM_JSON_RESPONSE"
+  echo "   This may indicate a server error or network issue."
+  echo "   Please check the Autosana API status and try again."
+  exit 1
+fi
+
+# Validate JSON before parsing
+if ! echo "$CONFIRM_JSON_RESPONSE" | jq empty 2>/dev/null; then
+  echo "❌ ERROR: Confirm upload API returned invalid JSON"
+  echo "   Response body: $CONFIRM_JSON_RESPONSE"
+  exit 1
+fi
 
 # Check if confirmation was successful
 if echo "$CONFIRM_JSON_RESPONSE" | jq -e '.detail' > /dev/null 2>&1; then
