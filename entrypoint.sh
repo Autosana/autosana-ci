@@ -145,15 +145,6 @@ if [ "$PLATFORM" = "web" ]; then
   echo "🌐 Starting web URL registration..."
   echo ""
 
-  echo "🔄 Registering web build with Autosana..."
-  echo "   API Endpoint: $API_BASE_URL/api/ci/upload-web-build"
-  echo "   Request Payload:"
-  echo "   {"
-  echo "     \"app_id\": \"$APP_ID\","
-  echo "     \"url\": \"$URL\""
-  echo "   }"
-  echo ""
-
   WEB_PAYLOAD=$(jq -n \
     --arg app_id "$APP_ID" \
     --arg url "$URL" \
@@ -161,6 +152,12 @@ if [ "$PLATFORM" = "web" ]; then
     --arg branch_name "$BRANCH_NAME" \
     --arg repo_full_name "$REPO_FULL_NAME" \
     '{app_id: $app_id, url: $url, commit_sha: $commit_sha, branch_name: $branch_name, repo_full_name: $repo_full_name}')
+
+  echo "🔄 Registering web build with Autosana..."
+  echo "   API Endpoint: $API_BASE_URL/api/ci/upload-web-build"
+  echo "   Request Payload:"
+  echo "$WEB_PAYLOAD" | jq '.'
+  echo ""
 
   RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/upload-web-build" \
     -H "X-API-Key: $AUTOSANA_KEY" \
