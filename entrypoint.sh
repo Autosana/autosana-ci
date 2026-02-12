@@ -163,6 +163,8 @@ if [ "$PLATFORM" = "web" ]; then
   echo ""
 
   RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/upload-web-build" \
+    --connect-timeout 30 \
+    --max-time 60 \
     -H "X-API-Key: $AUTOSANA_KEY" \
     -H "Content-Type: application/json" \
     -d "$WEB_PAYLOAD" \
@@ -254,6 +256,8 @@ START_PAYLOAD=$(jq -n \
   '{bundle_id: $bundle_id, platform: $platform, filename: $filename, name: $name}')
 
 RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/start-upload" \
+  --connect-timeout 30 \
+  --max-time 60 \
   -H "X-API-Key: $AUTOSANA_KEY" \
   -H "Content-Type: application/json" \
   -d "$START_PAYLOAD" \
@@ -339,6 +343,8 @@ echo ""
 
 UPLOAD_START_TIME=$(date +%s)
 UPLOAD_RESPONSE=$(curl -s -X PUT "$UPLOAD_URL" \
+  --connect-timeout 30 \
+  --max-time 600 \
   -H "Content-Type: application/octet-stream" \
   --data-binary @"$APK_PATH" \
   -w "\nHTTP Status: %{http_code}\nTotal Time: %{time_total}s\nUpload Speed: %{speed_upload} bytes/sec\n")
@@ -389,6 +395,8 @@ echo ""
 
 CONFIRM_START_TIME=$(date +%s)
 CONFIRM_RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/confirm-upload" \
+  --connect-timeout 30 \
+  --max-time 60 \
   -H "X-API-Key: $AUTOSANA_KEY" \
   -H "Content-Type: application/json" \
   -d "$CONFIRM_PAYLOAD" \
