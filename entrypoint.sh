@@ -240,13 +240,6 @@ echo ""
 # Step 1: Start Upload
 echo "🔄 Step 1: Starting upload process..."
 echo "   API Endpoint: $API_BASE_URL/api/ci/start-upload"
-echo "   Request Payload:"
-echo "   {"
-echo "     \"bundle_id\": \"$BUNDLE_ID\"," 
-echo "     \"platform\": \"$PLATFORM\"," 
-echo "     \"filename\": \"$FILENAME\""
-echo "   }"
-echo ""
 
 START_PAYLOAD=$(jq -n \
   --arg bundle_id "$BUNDLE_ID" \
@@ -254,6 +247,10 @@ START_PAYLOAD=$(jq -n \
   --arg filename "$FILENAME" \
   --arg name "$APP_NAME" \
   '{bundle_id: $bundle_id, platform: $platform, filename: $filename, name: $name}')
+
+echo "   Request Payload:"
+echo "$START_PAYLOAD" | jq '.'
+echo ""
 
 RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/start-upload" \
   --connect-timeout 30 \
