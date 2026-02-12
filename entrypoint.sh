@@ -30,6 +30,7 @@ if [ "$PLATFORM" = "web" ]; then
   echo "   AUTOSANA_KEY: ${AUTOSANA_KEY:0:10}... (${#AUTOSANA_KEY} chars)"
   echo "   APP_ID: $APP_ID"
   echo "   URL: $URL"
+  echo "   APP_NAME: ${APP_NAME:-<not set>}"
   echo ""
 
   if [ -z "$APP_ID" ] || [ -z "$URL" ]; then
@@ -65,6 +66,7 @@ elif [ "$PLATFORM" = "android" ] || [ "$PLATFORM" = "ios" ]; then
   echo "   BUNDLE_ID: $BUNDLE_ID"
   echo "   PLATFORM: $PLATFORM"
   echo "   BUILD_PATH: $BUILD_PATH"
+  echo "   APP_NAME: ${APP_NAME:-<not set>}"
   echo ""
 
   if [ -z "$BUNDLE_ID" ] || [ -z "$BUILD_PATH" ]; then
@@ -148,10 +150,11 @@ if [ "$PLATFORM" = "web" ]; then
   WEB_PAYLOAD=$(jq -n \
     --arg app_id "$APP_ID" \
     --arg url "$URL" \
+    --arg name "$APP_NAME" \
     --arg commit_sha "$COMMIT_SHA" \
     --arg branch_name "$BRANCH_NAME" \
     --arg repo_full_name "$REPO_FULL_NAME" \
-    '{app_id: $app_id, url: $url, commit_sha: $commit_sha, branch_name: $branch_name, repo_full_name: $repo_full_name}')
+    '{app_id: $app_id, url: $url, name: $name, commit_sha: $commit_sha, branch_name: $branch_name, repo_full_name: $repo_full_name}')
 
   echo "🔄 Registering web build with Autosana..."
   echo "   API Endpoint: $API_BASE_URL/api/ci/upload-web-build"
@@ -247,7 +250,8 @@ START_PAYLOAD=$(jq -n \
   --arg bundle_id "$BUNDLE_ID" \
   --arg platform "$PLATFORM" \
   --arg filename "$FILENAME" \
-  '{bundle_id: $bundle_id, platform: $platform, filename: $filename}')
+  --arg name "$APP_NAME" \
+  '{bundle_id: $bundle_id, platform: $platform, filename: $filename, name: $name}')
 
 RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/start-upload" \
   -H "X-API-Key: $AUTOSANA_KEY" \
@@ -365,6 +369,7 @@ CONFIRM_PAYLOAD=$(jq -n \
   --arg bundle_id "$BUNDLE_ID" \
   --arg platform "$PLATFORM" \
   --arg file_path "$FILE_PATH" \
+  --arg name "$APP_NAME" \
   --arg commit_sha "$COMMIT_SHA" \
   --arg branch_name "$BRANCH_NAME" \
   --arg repo_full_name "$REPO_FULL_NAME" \
@@ -372,6 +377,7 @@ CONFIRM_PAYLOAD=$(jq -n \
     bundle_id: $bundle_id,
     platform: $platform,
     uploaded_file_path: $file_path,
+    name: $name,
     commit_sha: $commit_sha,
     branch_name: $branch_name,
     repo_full_name: $repo_full_name
