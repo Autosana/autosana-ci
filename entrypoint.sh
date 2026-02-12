@@ -5,30 +5,81 @@ echo "🚀 ========================================"
 echo "🚀 Autosana CI Upload Script Starting"
 echo "🚀 ========================================"
 echo "📅 Timestamp: $(date)"
-echo "🔧 Script Version: 2.0"
+echo "🔧 Script Version: 3.1"
 echo ""
 
 # API Base URL - can be overridden for testing (staging, ngrok, etc.)
 # Default: production
 API_BASE_URL="${AUTOSANA_API_URL:-https://backend.autosana.ai}"
 echo "🌐 API Base URL: $API_BASE_URL"
+echo "🎯 Platform: $PLATFORM"
 echo ""
 
-# Check required inputs
-echo "🔍 Checking required environment variables..."
-echo "   AUTOSANA_KEY: ${AUTOSANA_KEY:0:10}... (${#AUTOSANA_KEY} chars)"
-echo "   BUNDLE_ID: $BUNDLE_ID"
-echo "   PLATFORM: $PLATFORM"
-echo "   BUILD_PATH: $BUILD_PATH"
-echo ""
-
-if [ -z "$AUTOSANA_KEY" ] || [ -z "$BUNDLE_ID" ] || [ -z "$PLATFORM" ] || [ -z "$BUILD_PATH" ]; then
+# Check common required inputs
+if [ -z "$AUTOSANA_KEY" ] || [ -z "$PLATFORM" ]; then
   echo "❌ ERROR: Missing required inputs."
-  echo "   Required variables:"
   echo "   - AUTOSANA_KEY: ${AUTOSANA_KEY:+SET}${AUTOSANA_KEY:-NOT SET}"
-  echo "   - BUNDLE_ID: ${BUNDLE_ID:+SET}${BUNDLE_ID:-NOT SET}"
   echo "   - PLATFORM: ${PLATFORM:+SET}${PLATFORM:-NOT SET}"
-  echo "   - BUILD_PATH: ${BUILD_PATH:+SET}${BUILD_PATH:-NOT SET}"
+  exit 1
+fi
+
+# Validate platform and check platform-specific inputs
+if [ "$PLATFORM" = "web" ]; then
+  echo "🌐 Web platform detected"
+  echo "🔍 Checking web-specific environment variables..."
+  echo "   AUTOSANA_KEY: ${AUTOSANA_KEY:0:10}... (${#AUTOSANA_KEY} chars)"
+  echo "   APP_ID: $APP_ID"
+  echo "   URL: $URL"
+  echo "   APP_NAME: ${APP_NAME:-<not set>}"
+  echo ""
+
+  if [ -z "$APP_ID" ] || [ -z "$URL" ]; then
+    echo "❌ ERROR: Missing required inputs for web platform."
+    echo "   Required variables:"
+    echo "   - AUTOSANA_KEY: ${AUTOSANA_KEY:+SET}${AUTOSANA_KEY:-NOT SET}"
+    echo "   - APP_ID: ${APP_ID:+SET}${APP_ID:-NOT SET}"
+    echo "   - URL: ${URL:+SET}${URL:-NOT SET}"
+    exit 1
+  fi
+
+  # Validate app-id format: lowercase alphanumeric with hyphens only
+  if ! echo "$APP_ID" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$'; then
+    echo "❌ ERROR: Invalid app-id format."
+    echo "   app-id must be lowercase alphanumeric with hyphens only."
+    echo "   Examples: 'my-web-app', 'staging', 'preview-app-123'"
+    echo "   Invalid: 'My-App', 'my_app', 'my app'"
+    echo "   Provided: '$APP_ID'"
+    exit 1
+  fi
+
+  # Validate URL format
+  if ! echo "$URL" | grep -qE '^https?://'; then
+    echo "❌ ERROR: Invalid URL format."
+    echo "   URL must start with http:// or https://"
+    echo "   Provided: '$URL'"
+    exit 1
+  fi
+elif [ "$PLATFORM" = "android" ] || [ "$PLATFORM" = "ios" ]; then
+  echo "📱 Mobile platform detected: $PLATFORM"
+  echo "🔍 Checking mobile-specific environment variables..."
+  echo "   AUTOSANA_KEY: ${AUTOSANA_KEY:0:10}... (${#AUTOSANA_KEY} chars)"
+  echo "   BUNDLE_ID: $BUNDLE_ID"
+  echo "   PLATFORM: $PLATFORM"
+  echo "   BUILD_PATH: $BUILD_PATH"
+  echo "   APP_NAME: ${APP_NAME:-<not set>}"
+  echo ""
+
+  if [ -z "$BUNDLE_ID" ] || [ -z "$BUILD_PATH" ]; then
+    echo "❌ ERROR: Missing required inputs for mobile platform."
+    echo "   Required variables:"
+    echo "   - AUTOSANA_KEY: ${AUTOSANA_KEY:+SET}${AUTOSANA_KEY:-NOT SET}"
+    echo "   - BUNDLE_ID: ${BUNDLE_ID:+SET}${BUNDLE_ID:-NOT SET}"
+    echo "   - PLATFORM: ${PLATFORM:+SET}${PLATFORM:-NOT SET}"
+    echo "   - BUILD_PATH: ${BUILD_PATH:+SET}${BUILD_PATH:-NOT SET}"
+    exit 1
+  fi
+else
+  echo "❌ ERROR: Invalid platform '$PLATFORM'. Must be 'android', 'ios', or 'web'."
   exit 1
 fi
 
@@ -89,6 +140,91 @@ echo "   BRANCH_NAME: ${BRANCH_NAME:-not set}"
 echo "   REPO_FULL_NAME: ${REPO_FULL_NAME:-not set}"
 echo ""
 
+# ============================================================
+# WEB PLATFORM FLOW
+# ============================================================
+if [ "$PLATFORM" = "web" ]; then
+  echo "🌐 Starting web URL registration..."
+  echo ""
+
+  WEB_PAYLOAD=$(jq -n \
+    --arg app_id "$APP_ID" \
+    --arg url "$URL" \
+    --arg name "$APP_NAME" \
+    --arg commit_sha "$COMMIT_SHA" \
+    --arg branch_name "$BRANCH_NAME" \
+    --arg repo_full_name "$REPO_FULL_NAME" \
+    '{app_id: $app_id, url: $url, name: $name, commit_sha: $commit_sha, branch_name: $branch_name, repo_full_name: $repo_full_name}')
+
+  echo "🔄 Registering web build with Autosana..."
+  echo "   API Endpoint: $API_BASE_URL/api/ci/upload-web-build"
+  echo "   Request Payload:"
+  echo "$WEB_PAYLOAD" | jq '.'
+  echo ""
+
+  RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/upload-web-build" \
+    --connect-timeout 30 \
+    --max-time 60 \
+    -H "X-API-Key: $AUTOSANA_KEY" \
+    -H "Content-Type: application/json" \
+    -d "$WEB_PAYLOAD" \
+    -w "\nHTTP Status: %{http_code}\nTotal Time: %{time_total}s\n")
+
+  echo "📡 API Response:"
+  echo "$RESPONSE"
+  echo ""
+
+  # Extract JSON response
+  JSON_RESPONSE=$(echo "$RESPONSE" | head -n 1)
+  HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP Status:" | cut -d' ' -f3)
+
+  echo "🔍 Parsed response:"
+  echo "   JSON Response: $JSON_RESPONSE"
+  echo "   HTTP Status: $HTTP_STATUS"
+  echo ""
+
+  # Check HTTP status
+  if [ "$HTTP_STATUS" != "200" ]; then
+    echo "❌ ERROR: API request failed with HTTP status $HTTP_STATUS"
+    echo "   Response body: $JSON_RESPONSE"
+    exit 1
+  fi
+
+  # Validate JSON
+  if ! echo "$JSON_RESPONSE" | jq empty 2>/dev/null; then
+    echo "❌ ERROR: API returned invalid JSON"
+    echo "   Response body: $JSON_RESPONSE"
+    exit 1
+  fi
+
+  # Check for error detail
+  if echo "$JSON_RESPONSE" | jq -e '.detail' > /dev/null 2>&1; then
+    ERROR_DETAIL=$(echo "$JSON_RESPONSE" | jq -r '.detail')
+    echo "❌ ERROR: Web URL registration failed"
+    echo "   Error detail: $ERROR_DETAIL"
+    exit 1
+  fi
+
+  # Success
+  echo "🎉 ========================================"
+  echo "🎉 Web URL registered successfully!"
+  echo "🎉 ========================================"
+  echo "📊 Summary:"
+  echo "   App ID: $APP_ID"
+  echo "   URL: $URL"
+  echo "   Commit SHA: ${COMMIT_SHA:-not set}"
+  echo "   Branch: ${BRANCH_NAME:-not set}"
+  echo "   Repository: ${REPO_FULL_NAME:-not set}"
+  echo "   Completed at: $(date)"
+  echo ""
+  echo "✅ Registration complete."
+  exit 0
+fi
+
+# ============================================================
+# MOBILE PLATFORM FLOW (android/ios)
+# ============================================================
+
 # Extract filename from build path for API calls
 FILENAME=$(basename "$BUILD_PATH")
 echo "📁 File Information:"
@@ -104,21 +240,21 @@ echo ""
 # Step 1: Start Upload
 echo "🔄 Step 1: Starting upload process..."
 echo "   API Endpoint: $API_BASE_URL/api/ci/start-upload"
-echo "   Request Payload:"
-echo "   {"
-echo "     \"bundle_id\": \"$BUNDLE_ID\"," 
-echo "     \"platform\": \"$PLATFORM\"," 
-echo "     \"filename\": \"$FILENAME\""
-echo "   }"
-echo ""
 
 START_PAYLOAD=$(jq -n \
   --arg bundle_id "$BUNDLE_ID" \
   --arg platform "$PLATFORM" \
   --arg filename "$FILENAME" \
-  '{bundle_id: $bundle_id, platform: $platform, filename: $filename}')
+  --arg name "$APP_NAME" \
+  '{bundle_id: $bundle_id, platform: $platform, filename: $filename, name: $name}')
+
+echo "   Request Payload:"
+echo "$START_PAYLOAD" | jq '.'
+echo ""
 
 RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/start-upload" \
+  --connect-timeout 30 \
+  --max-time 60 \
   -H "X-API-Key: $AUTOSANA_KEY" \
   -H "Content-Type: application/json" \
   -d "$START_PAYLOAD" \
@@ -204,6 +340,8 @@ echo ""
 
 UPLOAD_START_TIME=$(date +%s)
 UPLOAD_RESPONSE=$(curl -s -X PUT "$UPLOAD_URL" \
+  --connect-timeout 30 \
+  --max-time 600 \
   -H "Content-Type: application/octet-stream" \
   --data-binary @"$APK_PATH" \
   -w "\nHTTP Status: %{http_code}\nTotal Time: %{time_total}s\nUpload Speed: %{speed_upload} bytes/sec\n")
@@ -234,6 +372,7 @@ CONFIRM_PAYLOAD=$(jq -n \
   --arg bundle_id "$BUNDLE_ID" \
   --arg platform "$PLATFORM" \
   --arg file_path "$FILE_PATH" \
+  --arg name "$APP_NAME" \
   --arg commit_sha "$COMMIT_SHA" \
   --arg branch_name "$BRANCH_NAME" \
   --arg repo_full_name "$REPO_FULL_NAME" \
@@ -241,6 +380,7 @@ CONFIRM_PAYLOAD=$(jq -n \
     bundle_id: $bundle_id,
     platform: $platform,
     uploaded_file_path: $file_path,
+    name: $name,
     commit_sha: $commit_sha,
     branch_name: $branch_name,
     repo_full_name: $repo_full_name
@@ -252,6 +392,8 @@ echo ""
 
 CONFIRM_START_TIME=$(date +%s)
 CONFIRM_RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/confirm-upload" \
+  --connect-timeout 30 \
+  --max-time 60 \
   -H "X-API-Key: $AUTOSANA_KEY" \
   -H "Content-Type: application/json" \
   -d "$CONFIRM_PAYLOAD" \

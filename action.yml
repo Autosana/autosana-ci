@@ -1,18 +1,34 @@
 name: "Autosana CI Upload"
-description: "Upload your built mobile app to Autosana via CI"
+description: "Upload your mobile app or register a web app URL with Autosana"
 inputs:
   api-key:
     description: "Your Autosana API key"
     required: true
-  bundle-id:
-    description: "Your app's bundle ID"
-    required: true
   platform:
-    description: "Platform (e.g., android, ios)"
+    description: "Platform: android, ios, or web"
     required: true
+
+  # Mobile-specific inputs (required when platform is android or ios)
+  bundle-id:
+    description: "[Mobile] Your app's bundle ID"
+    required: false
   build-path:
-    description: "Full path to the APK/IPA file (e.g., android/app/build/outputs/apk/release/app-release.apk)"
-    required: true
+    description: "[Mobile] Full path to the APK/IPA file"
+    required: false
+
+  # Web-specific inputs (required when platform is web)
+  app-id:
+    description: "[Web] Unique identifier for your web app (lowercase, alphanumeric with hyphens, e.g., 'my-web-app')"
+    required: false
+  url:
+    description: "[Web] URL to test (e.g., Vercel/Netlify preview deployment URL)"
+    required: false
+
+  # Shared optional inputs
+  name:
+    description: "Display name for your app (optional, will update if app already exists)"
+    required: false
+
   api-url:
     description: "API base URL (for testing with dev/staging). Default: https://backend.autosana.ai"
     required: false
@@ -26,7 +42,13 @@ runs:
       shell: bash
       env:
         AUTOSANA_KEY: ${{ inputs.api-key }}
-        BUNDLE_ID: ${{ inputs.bundle-id }}
         PLATFORM: ${{ inputs.platform }}
+        # Mobile inputs
+        BUNDLE_ID: ${{ inputs.bundle-id }}
         BUILD_PATH: ${{ inputs.build-path }}
+        # Web inputs
+        APP_ID: ${{ inputs.app-id }}
+        URL: ${{ inputs.url }}
+        # Shared
+        APP_NAME: ${{ inputs.name }}
         AUTOSANA_API_URL: ${{ inputs.api-url }}
