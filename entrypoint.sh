@@ -565,7 +565,6 @@ while true; do
   # Print newly completed flows grouped by suite (streaming output)
   echo "$STATUS_RESPONSE" | jq -c '.run_groups[]' 2>/dev/null | while IFS= read -r group; do
     GROUP_NAME=$(echo "$group" | jq -r '.name')
-    GROUP_STATUS=$(echo "$group" | jq -r '.status')
 
     echo "$group" | jq -c '.runs[]' 2>/dev/null | while IFS= read -r flow; do
       FLOW_STATUS=$(echo "$flow" | jq -r '.status')
@@ -576,12 +575,12 @@ while true; do
         *) continue ;;
       esac
 
-      if grep -q "$FLOW_ID" "$PRINTED_IDS_FILE" 2>/dev/null; then
+      if grep -Fxq "$FLOW_ID" "$PRINTED_IDS_FILE" 2>/dev/null; then
         continue
       fi
 
       # Print group header on first flow from this group
-      if ! grep -q "group:$GROUP_NAME" "$PRINTED_IDS_FILE" 2>/dev/null; then
+      if ! grep -Fxq "group:$GROUP_NAME" "$PRINTED_IDS_FILE" 2>/dev/null; then
         echo "group:$GROUP_NAME" >> "$PRINTED_IDS_FILE"
         echo ""
         echo "  $GROUP_NAME"
@@ -621,15 +620,15 @@ echo "========================================"
 echo "  Results Summary"
 echo "========================================"
 
-TOTAL_GROUPS=$(echo "$STATUS_RESPONSE" | jq -r '.summary.total_groups')
-PASSED_GROUPS=$(echo "$STATUS_RESPONSE" | jq -r '.summary.passed_groups')
+TOTAL_GROUPS=$(echo "$STATUS_RESPONSE" | jq -r '.summary.total_groups // 0')
+PASSED_GROUPS=$(echo "$STATUS_RESPONSE" | jq -r '.summary.passed_groups // 0')
 
-TOTAL=$(echo "$STATUS_RESPONSE" | jq -r '.summary.total_flows')
-PASSED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.passed_flows')
-FAILED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.failed_flows')
-ERROR_COUNT=$(echo "$STATUS_RESPONSE" | jq -r '.summary.error_flows')
-TERMINATED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.terminated_flows')
-SKIPPED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.skipped_flows')
+TOTAL=$(echo "$STATUS_RESPONSE" | jq -r '.summary.total_flows // 0')
+PASSED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.passed_flows // 0')
+FAILED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.failed_flows // 0')
+ERROR_COUNT=$(echo "$STATUS_RESPONSE" | jq -r '.summary.error_flows // 0')
+TERMINATED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.terminated_flows // 0')
+SKIPPED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.skipped_flows // 0')
 
 echo "   Suites:  $PASSED_GROUPS/$TOTAL_GROUPS passed"
 echo "   Flows:   $PASSED/$TOTAL passed"
