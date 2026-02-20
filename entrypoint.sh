@@ -533,6 +533,12 @@ fi
 BATCH_ID=$(echo "$JSON_RESPONSE" | jq -r '.batch_id')
 FLOW_RUN_COUNT=$(echo "$JSON_RESPONSE" | jq -r '.flow_run_count')
 
+if [ -z "$BATCH_ID" ] || [ "$BATCH_ID" = "null" ]; then
+  echo "❌ ERROR: Failed to retrieve batch ID from response"
+  echo "   Response: $JSON_RESPONSE"
+  exit 1
+fi
+
 echo "✅ Triggered $FLOW_RUN_COUNT flow(s)"
 echo "   Batch ID: $BATCH_ID"
 echo ""
@@ -548,7 +554,7 @@ while true; do
   STATUS_RESPONSE=$(curl -s -X GET "$API_BASE_URL/api/v1/runs/status?batch_id=$BATCH_ID" \
     --connect-timeout 30 \
     --max-time 30 \
-    -H "X-API-Key: $AUTOSANA_KEY")
+    -H "X-API-Key: $AUTOSANA_KEY" || true)
 
   if ! echo "$STATUS_RESPONSE" | jq empty 2>/dev/null; then
     echo "   ⚠ Warning: Invalid response from status API, retrying..."
@@ -617,7 +623,6 @@ echo "========================================"
 
 TOTAL_GROUPS=$(echo "$STATUS_RESPONSE" | jq -r '.summary.total_groups')
 PASSED_GROUPS=$(echo "$STATUS_RESPONSE" | jq -r '.summary.passed_groups')
-FAILED_GROUPS=$(echo "$STATUS_RESPONSE" | jq -r '.summary.failed_groups')
 
 TOTAL=$(echo "$STATUS_RESPONSE" | jq -r '.summary.total_flows')
 PASSED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.passed_flows')
