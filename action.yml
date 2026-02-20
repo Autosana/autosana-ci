@@ -13,7 +13,7 @@ inputs:
     description: "[Mobile] Your app's bundle ID"
     required: false
   build-path:
-    description: "[Mobile] Full path to the APK/IPA file"
+    description: "[Mobile] Full path to the .apk/.app file"
     required: false
 
   # Web-specific inputs (required when platform is web)
