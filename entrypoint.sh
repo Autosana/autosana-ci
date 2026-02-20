@@ -218,12 +218,12 @@ if [ "$PLATFORM" = "web" ]; then
   echo "   Completed at: $(date)"
   echo ""
   echo "✅ Registration complete."
-  exit 0
 fi
 
 # ============================================================
 # MOBILE PLATFORM FLOW (android/ios)
 # ============================================================
+if [ "$PLATFORM" != "web" ]; then
 
 # Extract filename from build path for API calls
 FILENAME=$(basename "$BUILD_PATH")
@@ -458,3 +458,215 @@ echo "   Completed at: $(date)"
 echo ""
 
 echo "✅ Upload complete."
+fi
+
+# ============================================================
+# FLOW EXECUTION (optional — runs when suite-ids or flow-ids are provided)
+# ============================================================
+
+if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ]; then
+  exit 0
+fi
+
+echo ""
+echo "🔬 ========================================"
+echo "🔬 Running Flows"
+echo "🔬 ========================================"
+echo ""
+
+# Convert comma-separated IDs to JSON arrays (strip whitespace)
+if [ -n "$FLOW_IDS" ]; then
+  FLOW_IDS_JSON=$(echo "$FLOW_IDS" | tr -d ' ' | tr ',' '\n' | sed '/^$/d' | jq -R . | jq -s .)
+else
+  FLOW_IDS_JSON="[]"
+fi
+
+if [ -n "$SUITE_IDS" ]; then
+  SUITE_IDS_JSON=$(echo "$SUITE_IDS" | tr -d ' ' | tr ',' '\n' | sed '/^$/d' | jq -R . | jq -s .)
+else
+  SUITE_IDS_JSON="[]"
+fi
+
+# Build the run-flows payload based on platform
+if [ "$PLATFORM" = "web" ]; then
+  RUN_PAYLOAD=$(jq -n \
+    --arg app_id "$APP_ID" \
+    --argjson flow_ids "$FLOW_IDS_JSON" \
+    --argjson suite_ids "$SUITE_IDS_JSON" \
+    '{app_id: $app_id, flow_ids: $flow_ids, suite_ids: $suite_ids}')
+else
+  RUN_PAYLOAD=$(jq -n \
+    --arg bundle_id "$BUNDLE_ID" \
+    --arg platform "$PLATFORM" \
+    --argjson flow_ids "$FLOW_IDS_JSON" \
+    --argjson suite_ids "$SUITE_IDS_JSON" \
+    '{bundle_id: $bundle_id, platform: $platform, flow_ids: $flow_ids, suite_ids: $suite_ids}')
+fi
+
+echo "🔄 Triggering flows..."
+echo "   API Endpoint: $API_BASE_URL/api/v1/flows/run"
+echo ""
+
+RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/v1/flows/run" \
+  --connect-timeout 30 \
+  --max-time 60 \
+  -H "X-API-Key: $AUTOSANA_KEY" \
+  -H "Content-Type: application/json" \
+  -d "$RUN_PAYLOAD" \
+  -w "\nHTTP Status: %{http_code}\n")
+
+JSON_RESPONSE=$(echo "$RESPONSE" | head -n 1)
+HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP Status:" | cut -d' ' -f3)
+
+if [ "$HTTP_STATUS" != "200" ]; then
+  echo "❌ ERROR: Failed to trigger flows (HTTP $HTTP_STATUS)"
+  echo "   Response: $JSON_RESPONSE"
+  exit 1
+fi
+
+if ! echo "$JSON_RESPONSE" | jq empty 2>/dev/null; then
+  echo "❌ ERROR: Invalid JSON response from run-flows"
+  echo "   Response: $JSON_RESPONSE"
+  exit 1
+fi
+
+BATCH_ID=$(echo "$JSON_RESPONSE" | jq -r '.batch_id')
+FLOW_RUN_COUNT=$(echo "$JSON_RESPONSE" | jq -r '.flow_run_count')
+
+if [ -z "$BATCH_ID" ] || [ "$BATCH_ID" = "null" ]; then
+  echo "❌ ERROR: Failed to retrieve batch ID from response"
+  echo "   Response: $JSON_RESPONSE"
+  exit 1
+fi
+
+echo "✅ Triggered $FLOW_RUN_COUNT flow(s)"
+echo "   Batch ID: $BATCH_ID"
+echo ""
+
+# Polling configuration
+POLL_INTERVAL=15
+PRINTED_IDS_FILE=$(mktemp)
+trap "rm -f $PRINTED_IDS_FILE" EXIT
+
+# Initial poll to show all flow links upfront
+sleep 2
+INIT_RESPONSE=$(curl -s -X GET "$API_BASE_URL/api/v1/runs/status?batch_id=$BATCH_ID" \
+  --connect-timeout 30 \
+  --max-time 30 \
+  -H "X-API-Key: $AUTOSANA_KEY" || true)
+
+if echo "$INIT_RESPONSE" | jq empty 2>/dev/null; then
+  echo "📋 Flows:"
+  echo "$INIT_RESPONSE" | jq -c '.run_groups[]' 2>/dev/null | while IFS= read -r group; do
+    GROUP_NAME=$(echo "$group" | jq -r '.name')
+    echo ""
+    echo "  $GROUP_NAME"
+    echo "group:$GROUP_NAME" >> "$PRINTED_IDS_FILE"
+    echo "$group" | jq -c '.runs[]' 2>/dev/null | while IFS= read -r flow; do
+      FLOW_NAME=$(echo "$flow" | jq -r '.name')
+      FLOW_URL=$(echo "$flow" | jq -r '.url')
+      printf "    · %-40s %s\n" "$FLOW_NAME" "$FLOW_URL"
+    done
+  done
+  echo ""
+fi
+
+echo "⏳ Waiting for results..."
+echo ""
+
+while true; do
+  STATUS_RESPONSE=$(curl -s -X GET "$API_BASE_URL/api/v1/runs/status?batch_id=$BATCH_ID" \
+    --connect-timeout 30 \
+    --max-time 30 \
+    -H "X-API-Key: $AUTOSANA_KEY" || true)
+
+  if ! echo "$STATUS_RESPONSE" | jq empty 2>/dev/null; then
+    echo "   ⚠ Warning: Invalid response from status API, retrying..."
+    sleep "$POLL_INTERVAL"
+    continue
+  fi
+
+  # Print newly completed flows grouped by suite (streaming output)
+  echo "$STATUS_RESPONSE" | jq -c '.run_groups[]' 2>/dev/null | while IFS= read -r group; do
+    GROUP_NAME=$(echo "$group" | jq -r '.name')
+
+    echo "$group" | jq -c '.runs[]' 2>/dev/null | while IFS= read -r flow; do
+      FLOW_STATUS=$(echo "$flow" | jq -r '.status')
+      FLOW_ID=$(echo "$flow" | jq -r '.id')
+
+      case "$FLOW_STATUS" in
+        passed|failed|error|terminated|skipped) ;;
+        *) continue ;;
+      esac
+
+      if grep -Fxq "$FLOW_ID" "$PRINTED_IDS_FILE" 2>/dev/null; then
+        continue
+      fi
+
+      # Print group header on first flow from this group
+      if ! grep -Fxq "group:$GROUP_NAME" "$PRINTED_IDS_FILE" 2>/dev/null; then
+        echo "group:$GROUP_NAME" >> "$PRINTED_IDS_FILE"
+        echo ""
+        echo "  $GROUP_NAME"
+      fi
+
+      echo "$FLOW_ID" >> "$PRINTED_IDS_FILE"
+
+      FLOW_NAME=$(echo "$flow" | jq -r '.name')
+      FLOW_URL=$(echo "$flow" | jq -r '.url')
+
+      case "$FLOW_STATUS" in
+        passed)     printf "    ✓ %-40s PASSED   %s\n" "$FLOW_NAME" "$FLOW_URL" ;;
+        failed)     printf "    ✗ %-40s FAILED   %s\n" "$FLOW_NAME" "$FLOW_URL" ;;
+        error)      printf "    ⚠ %-40s ERROR    %s\n" "$FLOW_NAME" "$FLOW_URL" ;;
+        terminated) printf "    ■ %-40s TERMINATED\n" "$FLOW_NAME" ;;
+        skipped)    printf "    → %-40s SKIPPED\n" "$FLOW_NAME" ;;
+      esac
+
+      REVIEW_SUMMARY=$(echo "$flow" | jq -r '.summary // empty')
+      if [ -n "$REVIEW_SUMMARY" ]; then
+        echo "      $REVIEW_SUMMARY"
+      fi
+    done
+  done
+
+  IS_COMPLETE=$(echo "$STATUS_RESPONSE" | jq -r '.is_complete')
+  if [ "$IS_COMPLETE" = "true" ]; then
+    break
+  fi
+
+  sleep "$POLL_INTERVAL"
+done
+
+# Final summary
+echo ""
+echo "========================================"
+echo "  Results Summary"
+echo "========================================"
+
+TOTAL_GROUPS=$(echo "$STATUS_RESPONSE" | jq -r '.summary.total_groups // 0')
+PASSED_GROUPS=$(echo "$STATUS_RESPONSE" | jq -r '.summary.passed_groups // 0')
+
+TOTAL=$(echo "$STATUS_RESPONSE" | jq -r '.summary.total_flows // 0')
+PASSED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.passed_flows // 0')
+FAILED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.failed_flows // 0')
+ERROR_COUNT=$(echo "$STATUS_RESPONSE" | jq -r '.summary.error_flows // 0')
+TERMINATED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.terminated_flows // 0')
+SKIPPED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.skipped_flows // 0')
+
+echo "   Suites:  $PASSED_GROUPS/$TOTAL_GROUPS passed"
+echo "   Flows:   $PASSED/$TOTAL passed"
+[ "$FAILED" != "0" ] && echo "   Failed:  $FAILED"
+[ "$ERROR_COUNT" != "0" ] && echo "   Error:   $ERROR_COUNT"
+[ "$TERMINATED" != "0" ] && echo "   Terminated: $TERMINATED"
+[ "$SKIPPED" != "0" ] && echo "   Skipped: $SKIPPED"
+echo ""
+
+UNSUCCESSFUL=$((FAILED + ERROR_COUNT))
+if [ "$UNSUCCESSFUL" -gt 0 ]; then
+  echo "❌ $UNSUCCESSFUL flow(s) did not pass."
+  exit 1
+else
+  echo "✅ All flows passed!"
+  exit 0
+fi
