@@ -593,6 +593,11 @@ while true; do
         terminated) printf "    ■ %-40s TERMINATED\n" "$FLOW_NAME" ;;
         skipped)    printf "    → %-40s SKIPPED\n" "$FLOW_NAME" ;;
       esac
+
+      REVIEW_SUMMARY=$(echo "$flow" | jq -r '.summary // empty')
+      if [ -n "$REVIEW_SUMMARY" ]; then
+        echo "      $REVIEW_SUMMARY"
+      fi
     done
   done
 
