@@ -33,6 +33,14 @@ inputs:
     description: "API base URL (for testing with dev/staging). Default: https://backend.autosana.ai"
     required: false
     default: "https://backend.autosana.ai"
+
+  # Flow execution inputs (optional - provide to run flows after upload)
+  suite-ids:
+    description: "Comma-separated suite UUIDs to run (e.g., 'uuid1,uuid2')"
+    required: false
+  flow-ids:
+    description: "Comma-separated flow UUIDs to run (e.g., 'uuid1,uuid2')"
+    required: false
 runs:
   using: "composite"
   steps:
@@ -52,3 +60,6 @@ runs:
         # Shared
         APP_NAME: ${{ inputs.name }}
         AUTOSANA_API_URL: ${{ inputs.api-url }}
+        # Flow execution
+        SUITE_IDS: ${{ inputs.suite-ids }}
+        FLOW_IDS: ${{ inputs.flow-ids }}
