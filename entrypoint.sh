@@ -542,13 +542,37 @@ fi
 echo "✅ Triggered $FLOW_RUN_COUNT flow(s)"
 echo "   Batch ID: $BATCH_ID"
 echo ""
-echo "⏳ Waiting for results..."
-echo ""
 
 # Polling configuration
 POLL_INTERVAL=15
 PRINTED_IDS_FILE=$(mktemp)
 trap "rm -f $PRINTED_IDS_FILE" EXIT
+
+# Initial poll to show all flow links upfront
+sleep 2
+INIT_RESPONSE=$(curl -s -X GET "$API_BASE_URL/api/v1/runs/status?batch_id=$BATCH_ID" \
+  --connect-timeout 30 \
+  --max-time 30 \
+  -H "X-API-Key: $AUTOSANA_KEY" || true)
+
+if echo "$INIT_RESPONSE" | jq empty 2>/dev/null; then
+  echo "📋 Flows:"
+  echo "$INIT_RESPONSE" | jq -c '.run_groups[]' 2>/dev/null | while IFS= read -r group; do
+    GROUP_NAME=$(echo "$group" | jq -r '.name')
+    echo ""
+    echo "  $GROUP_NAME"
+    echo "group:$GROUP_NAME" >> "$PRINTED_IDS_FILE"
+    echo "$group" | jq -c '.runs[]' 2>/dev/null | while IFS= read -r flow; do
+      FLOW_NAME=$(echo "$flow" | jq -r '.name')
+      FLOW_URL=$(echo "$flow" | jq -r '.url')
+      printf "    · %-40s %s\n" "$FLOW_NAME" "$FLOW_URL"
+    done
+  done
+  echo ""
+fi
+
+echo "⏳ Waiting for results..."
+echo ""
 
 while true; do
   STATUS_RESPONSE=$(curl -s -X GET "$API_BASE_URL/api/v1/runs/status?batch_id=$BATCH_ID" \
