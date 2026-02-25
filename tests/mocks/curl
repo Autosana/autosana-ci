@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Mock curl for testing entrypoint.sh
+#
+# Override behavior per-test with env vars:
+#   MOCK_CURL_STATUS_<ENDPOINT>  - HTTP status code to return
+#   MOCK_CURL_BODY_<ENDPOINT>    - JSON body to return
+#
+# Endpoints: START_UPLOAD, CONFIRM_UPLOAD, UPLOAD_WEB, UPLOAD_FILE,
+#            RUN_FLOWS, POLL_STATUS
+
+METHOD="GET"
+URL=""
+HAS_WRITE_OUT=false
+prev_arg=""
+
+for arg in "$@"; do
+    case "$prev_arg" in
+        -X) METHOD="$arg" ;;
+        -w) HAS_WRITE_OUT=true ;;
+    esac
+    prev_arg="$arg"
+    if [[ "$arg" == http* ]]; then
+        URL="$arg"
+    fi
+done
+
+# Determine endpoint from URL path
+case "$URL" in
+    */api/ci/start-upload*)     ENDPOINT="START_UPLOAD" ;;
+    */api/ci/confirm-upload*)   ENDPOINT="CONFIRM_UPLOAD" ;;
+    */api/ci/upload-web-build*) ENDPOINT="UPLOAD_WEB" ;;
+    */api/v1/flows/run*)        ENDPOINT="RUN_FLOWS" ;;
+    */api/v1/runs/status*)      ENDPOINT="POLL_STATUS" ;;
+    *)
+        if [ "$METHOD" = "PUT" ]; then
+            ENDPOINT="UPLOAD_FILE"
+        else
+            ENDPOINT="UNKNOWN"
+        fi
+        ;;
+esac
+
+# Check for per-endpoint overrides
+status_var="MOCK_CURL_STATUS_${ENDPOINT}"
+body_var="MOCK_CURL_BODY_${ENDPOINT}"
+STATUS="${!status_var:-200}"
+BODY="${!body_var:-}"
+
+# Default responses per endpoint
+if [ -z "$BODY" ]; then
+    case "$ENDPOINT" in
+        START_UPLOAD)
+            BODY='{"upload_url":"https://s3.mock/upload","file_path":"builds/test/dummy.apk"}'
+            ;;
+        CONFIRM_UPLOAD)
+            BODY='{"status":"confirmed","app_id":"app-123"}'
+            ;;
+        UPLOAD_WEB)
+            BODY='{"status":"registered","app_id":"my-web-app"}'
+            ;;
+        UPLOAD_FILE)
+            BODY=''
+            ;;
+        RUN_FLOWS)
+            BODY='{"batch_id":"batch-001","flow_run_count":2}'
+            ;;
+        POLL_STATUS)
+            if [ -n "$MOCK_POLL_RESPONSE_FILE" ] && [ -f "$MOCK_POLL_RESPONSE_FILE" ]; then
+                BODY=$(cat "$MOCK_POLL_RESPONSE_FILE")
+            else
+                BODY='{"is_complete":true,"run_groups":[],"summary":{"total_groups":1,"passed_groups":1,"total_flows":2,"passed_flows":2,"failed_flows":0,"error_flows":0,"terminated_flows":0,"skipped_flows":0}}'
+            fi
+            ;;
+        *)
+            BODY='{"error":"unknown endpoint"}'
+            STATUS="404"
+            ;;
+    esac
+fi
+
+# Output response
+echo "$BODY"
+
+# Only append -w metadata when -w was passed by the caller
+if [ "$HAS_WRITE_OUT" = true ]; then
+    echo ""
+    echo "HTTP Status: $STATUS"
+    echo "Total Time: 0.1s"
+    if [ "$ENDPOINT" = "UPLOAD_FILE" ]; then
+        echo "Upload Speed: 1000000 bytes/sec"
+    fi
+fi

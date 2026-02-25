@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Mock git for testing entrypoint.sh
+
+if [ "$MOCK_GIT_FAIL" = "1" ]; then
+    exit 1
+fi
+
+if [[ "$*" == *"rev-parse HEAD"* ]]; then
+    echo "fakegitsha1234567890"
+else
+    command git "$@"
+fi

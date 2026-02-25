@@ -1,0 +1,34 @@
+{
+  "is_complete": true,
+  "run_groups": [
+    {
+      "name": "Smoke Tests",
+      "runs": [
+        {
+          "id": "run-1",
+          "name": "Login Flow",
+          "status": "passed",
+          "url": "https://app.autosana.ai/runs/run-1",
+          "summary": ""
+        },
+        {
+          "id": "run-2",
+          "name": "Checkout Flow",
+          "status": "failed",
+          "url": "https://app.autosana.ai/runs/run-2",
+          "summary": "Button not found"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_groups": 1,
+    "passed_groups": 0,
+    "total_flows": 2,
+    "passed_flows": 1,
+    "failed_flows": 1,
+    "error_flows": 0,
+    "terminated_flows": 0,
+    "skipped_flows": 0
+  }
+}
