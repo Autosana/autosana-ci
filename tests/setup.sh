@@ -10,12 +10,12 @@ mkdir -p "$LIB_DIR"
 
 if [ ! -d "$LIB_DIR/bats-support" ]; then
     echo "Installing bats-support..."
-    git clone --depth 1 https://github.com/bats-core/bats-support.git "$LIB_DIR/bats-support"
+    git clone --depth 1 --branch v0.3.0 https://github.com/bats-core/bats-support.git "$LIB_DIR/bats-support"
 fi
 
 if [ ! -d "$LIB_DIR/bats-assert" ]; then
     echo "Installing bats-assert..."
-    git clone --depth 1 https://github.com/bats-core/bats-assert.git "$LIB_DIR/bats-assert"
+    git clone --depth 1 --branch v2.2.4 https://github.com/bats-core/bats-assert.git "$LIB_DIR/bats-assert"
 fi
 
 echo "Bats helpers installed in $LIB_DIR"

@@ -120,6 +120,14 @@ setup() {
     assert_output --partial "Missing required inputs for mobile"
 }
 
+@test "ios platform missing BUILD_PATH exits 1" {
+    export PLATFORM="ios"
+    export BUILD_PATH=""
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Missing required inputs for mobile"
+}
+
 # --- Valid inputs pass validation ---
 
 @test "valid web inputs pass validation" {

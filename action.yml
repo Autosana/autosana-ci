@@ -29,7 +29,7 @@ inputs:
     description: "Display name for your app (optional, will update if app already exists)"
     required: false
   environment:
-    description: "Environment name to associate this app with (e.g., 'staging', 'production'). Apps with the same bundle ID but different environments are treated as separate apps."
+    description: "Environment name to associate this app with (e.g., 'staging', 'production'). Apps with the same identifier (bundle ID for mobile, app-id for web) but different environments are treated as separate apps."
     required: false
 
   api-url:

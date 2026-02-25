@@ -156,7 +156,8 @@ if [ "$PLATFORM" = "web" ]; then
     --arg commit_sha "$COMMIT_SHA" \
     --arg branch_name "$BRANCH_NAME" \
     --arg repo_full_name "$REPO_FULL_NAME" \
-    '{app_id: $app_id, url: $url, name: $name, environment: $environment, commit_sha: $commit_sha, branch_name: $branch_name, repo_full_name: $repo_full_name}')
+    '{app_id: $app_id, url: $url, name: $name, commit_sha: $commit_sha, branch_name: $branch_name, repo_full_name: $repo_full_name}
+     + (if $environment != "" then {environment: $environment} else {} end)')
 
   echo "🔄 Registering web build with Autosana..."
   echo "   API Endpoint: $API_BASE_URL/api/ci/upload-web-build"
@@ -249,7 +250,8 @@ START_PAYLOAD=$(jq -n \
   --arg filename "$FILENAME" \
   --arg name "$APP_NAME" \
   --arg environment "$ENVIRONMENT" \
-  '{bundle_id: $bundle_id, platform: $platform, filename: $filename, name: $name, environment: $environment}')
+  '{bundle_id: $bundle_id, platform: $platform, filename: $filename, name: $name}
+   + (if $environment != "" then {environment: $environment} else {} end)')
 
 echo "   Request Payload:"
 echo "$START_PAYLOAD" | jq '.'
@@ -385,11 +387,10 @@ CONFIRM_PAYLOAD=$(jq -n \
     platform: $platform,
     uploaded_file_path: $file_path,
     name: $name,
-    environment: $environment,
     commit_sha: $commit_sha,
     branch_name: $branch_name,
     repo_full_name: $repo_full_name
-  }')
+  } + (if $environment != "" then {environment: $environment} else {} end)')
 
 echo "   Request Payload:"
 echo "$CONFIRM_PAYLOAD" | jq '.'
@@ -499,7 +500,8 @@ if [ "$PLATFORM" = "web" ]; then
     --arg environment "$ENVIRONMENT" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
-    '{app_id: $app_id, environment: $environment, flow_ids: $flow_ids, suite_ids: $suite_ids}')
+    '{app_id: $app_id, flow_ids: $flow_ids, suite_ids: $suite_ids}
+     + (if $environment != "" then {environment: $environment} else {} end)')
 else
   RUN_PAYLOAD=$(jq -n \
     --arg bundle_id "$BUNDLE_ID" \
@@ -507,7 +509,8 @@ else
     --arg environment "$ENVIRONMENT" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
-    '{bundle_id: $bundle_id, platform: $platform, environment: $environment, flow_ids: $flow_ids, suite_ids: $suite_ids}')
+    '{bundle_id: $bundle_id, platform: $platform, flow_ids: $flow_ids, suite_ids: $suite_ids}
+     + (if $environment != "" then {environment: $environment} else {} end)')
 fi
 
 echo "🔄 Triggering flows..."
