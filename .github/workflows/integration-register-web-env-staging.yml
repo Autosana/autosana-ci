@@ -23,4 +23,4 @@ jobs:
           name: The Internet
           app-id: the-internet
           url: https://the-internet.herokuapp.com/
-          environment: production
+          environment: staging
