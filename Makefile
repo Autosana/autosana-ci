@@ -1,4 +1,4 @@
-# Makefile for Autosana CI Unit Tests
+# Makefile for unit tests
 
 .PHONY: test test-verbose
 
