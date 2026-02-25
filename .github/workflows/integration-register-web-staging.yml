@@ -1,0 +1,25 @@
+name: "Integration: Register Web (Staging)"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Register with Autosana (staging)
+        uses: ./
+        with:
+          api-key: ${{ secrets.AUTOSANA_STAGING_KEY }}
+          api-url: https://staging.autosana.ai
+          platform: web
+          name: The Internet
+          app-id: the-internet
+          url: https://the-internet.herokuapp.com/

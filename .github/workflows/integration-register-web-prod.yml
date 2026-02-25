@@ -1,0 +1,24 @@
+name: "Integration: Register Web (Prod)"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Register with Autosana (prod)
+        uses: ./
+        with:
+          api-key: ${{ secrets.AUTOSANA_KEY }}
+          platform: web
+          name: The Internet
+          app-id: the-internet
+          url: https://the-internet.herokuapp.com/

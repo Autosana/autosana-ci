@@ -1,0 +1,33 @@
+name: "Integration: Upload iOS (Prod)"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download App
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_URL="https://jwvmttqclexlhnhfxuyq.supabase.co/storage/v1/object/public/test_app_builds/react_native_todo.zip"
+          echo "Downloading App from ${APP_URL}"
+          curl --fail --location --silent --show-error "${APP_URL}" --output react_native_todo.zip
+          test -s react_native_todo.zip
+
+      - name: Upload to Autosana (prod)
+        uses: ./
+        with:
+          api-key: ${{ secrets.AUTOSANA_KEY }}
+          name: React Native Todo
+          bundle-id: com.vibetest.reactnativetodo
+          platform: ios
+          build-path: react_native_todo.zip

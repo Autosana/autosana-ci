@@ -28,6 +28,9 @@ inputs:
   name:
     description: "Display name for your app (optional, will update if app already exists)"
     required: false
+  environment:
+    description: "Environment name to associate this app with (e.g., 'staging', 'production'). Apps with the same identifier (bundle ID for mobile, app-id for web) but different environments are treated as separate apps."
+    required: false
 
   api-url:
     description: "API base URL (for testing with dev/staging). Default: https://backend.autosana.ai"
@@ -59,6 +62,7 @@ runs:
         URL: ${{ inputs.url }}
         # Shared
         APP_NAME: ${{ inputs.name }}
+        ENVIRONMENT: ${{ inputs.environment }}
         AUTOSANA_API_URL: ${{ inputs.api-url }}
         # Flow execution
         SUITE_IDS: ${{ inputs.suite-ids }}
