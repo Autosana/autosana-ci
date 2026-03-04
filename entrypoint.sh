@@ -60,7 +60,7 @@ if [ "$PLATFORM" = "web" ]; then
     echo "   Provided: '$URL'"
     exit 1
   fi
-elif [ "$PLATFORM" = "android" ] || [ "$PLATFORM" = "ios" ]; then
+elif echo "$PLATFORM" | grep -qE '^(android|ios)'; then
   echo "📱 Mobile platform detected: $PLATFORM"
   echo "🔍 Checking mobile-specific environment variables..."
   echo "   AUTOSANA_KEY: ${AUTOSANA_KEY:0:10}... (${#AUTOSANA_KEY} chars)"
@@ -80,7 +80,7 @@ elif [ "$PLATFORM" = "android" ] || [ "$PLATFORM" = "ios" ]; then
     exit 1
   fi
 else
-  echo "❌ ERROR: Invalid platform '$PLATFORM'. Must be 'android', 'ios', or 'web'."
+  echo "❌ ERROR: Invalid platform '$PLATFORM'. Must start with 'android' or 'ios', or be 'web'."
   exit 1
 fi
 

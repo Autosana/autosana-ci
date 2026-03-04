@@ -145,6 +145,13 @@ setup() {
     assert_output --partial "All required environment variables are set"
 }
 
+@test "android-arm64-gplay platform passes validation" {
+    export PLATFORM="android-arm64-gplay"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "All required environment variables are set"
+}
+
 @test "valid ios inputs pass validation" {
     export PLATFORM="ios"
     run bash "$ENTRYPOINT"
