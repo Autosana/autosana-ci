@@ -61,6 +61,12 @@ if [ "$PLATFORM" = "web" ]; then
     exit 1
   fi
 elif echo "$PLATFORM" | grep -qE '^(android|ios)'; then
+  if [ "$PLATFORM" = "android-arm64-gplay" ]; then
+    echo "⚠️  WARNING: Platform 'android-arm64-gplay' is deprecated."
+    echo "   Android devices include Google Play Services by default now."
+    echo "   Please update your workflow to use platform: 'android'."
+    echo ""
+  fi
   echo "📱 Mobile platform detected: $PLATFORM"
   echo "🔍 Checking mobile-specific environment variables..."
   echo "   AUTOSANA_KEY: ${AUTOSANA_KEY:0:10}... (${#AUTOSANA_KEY} chars)"
@@ -296,6 +302,11 @@ if ! echo "$JSON_RESPONSE" | jq empty 2>/dev/null; then
   exit 1
 fi
 
+# Display any API warnings (e.g. deprecated platform)
+echo "$JSON_RESPONSE" | jq -r '.warnings[]? // empty' 2>/dev/null | while IFS= read -r w; do
+  echo "⚠️  $w"
+done
+
 UPLOAD_URL=$(echo "$JSON_RESPONSE" | jq -r '.upload_url')
 FILE_PATH=$(echo "$JSON_RESPONSE" | jq -r '.file_path')
 
@@ -436,6 +447,11 @@ if ! echo "$CONFIRM_JSON_RESPONSE" | jq empty 2>/dev/null; then
   echo "   Response body: $CONFIRM_JSON_RESPONSE"
   exit 1
 fi
+
+# Display any API warnings (e.g. deprecated platform)
+echo "$CONFIRM_JSON_RESPONSE" | jq -r '.warnings[]? // empty' 2>/dev/null | while IFS= read -r w; do
+  echo "⚠️  $w"
+done
 
 # Check if confirmation was successful
 if echo "$CONFIRM_JSON_RESPONSE" | jq -e '.detail' > /dev/null 2>&1; then
