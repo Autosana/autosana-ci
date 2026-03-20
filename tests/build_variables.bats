@@ -22,7 +22,8 @@ setup() {
     run bash "$ENTRYPOINT"
     assert_success
     assert_output --partial '"variables"'
-    assert_output --partial 'PR_NUMBER=42,BRANCH=main'
+    # Raw value is redacted in logs for security
+    assert_output --partial '[REDACTED]'
 }
 
 @test "web: variables omitted from payload when empty" {
@@ -48,7 +49,8 @@ setup() {
     run bash "$ENTRYPOINT"
     assert_success
     assert_output --partial '"variables"'
-    assert_output --partial 'DEPLOY_ENV=staging,VERSION=1.2.3'
+    # Raw value is redacted in logs for security
+    assert_output --partial '[REDACTED]'
 }
 
 @test "mobile: variables omitted from confirm payload when empty" {

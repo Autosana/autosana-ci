@@ -16,6 +16,11 @@ echo "🎯 Platform: $PLATFORM"
 echo "🏷️  Environment: ${ENVIRONMENT:-<default>}"
 echo ""
 
+# Redact sensitive fields from payloads before logging
+_redact_payload() {
+  jq 'if has("variables") then .variables = "[REDACTED]" else . end'
+}
+
 # Check common required inputs
 if [ -z "$AUTOSANA_KEY" ] || [ -z "$PLATFORM" ]; then
   echo "❌ ERROR: Missing required inputs."
@@ -170,7 +175,7 @@ if [ "$PLATFORM" = "web" ]; then
   echo "🔄 Registering web build with Autosana..."
   echo "   API Endpoint: $API_BASE_URL/api/ci/upload-web-build"
   echo "   Request Payload:"
-  echo "$WEB_PAYLOAD" | jq '.'
+  echo "$WEB_PAYLOAD" | _redact_payload | jq '.'
   echo ""
 
   RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/upload-web-build" \
@@ -408,7 +413,7 @@ CONFIRM_PAYLOAD=$(jq -n \
     + (if $variables != "" then {variables: $variables} else {} end)')
 
 echo "   Request Payload:"
-echo "$CONFIRM_PAYLOAD" | jq '.'
+echo "$CONFIRM_PAYLOAD" | _redact_payload | jq '.'
 echo ""
 
 CONFIRM_START_TIME=$(date +%s)
