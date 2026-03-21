@@ -39,7 +39,7 @@ inputs:
 
   # Build variables (optional - passed to flow instructions via ${env:KEY})
   variables:
-    description: "Key-value variables to pass to flow instructions (format: KEY1=VALUE1,KEY2=VALUE2 or multiline KEY=VALUE pairs)"
+    description: "Key-value variables to pass to flow instructions (format: KEY1=VALUE1,KEY2=VALUE2)"
     required: false
 
   # Flow execution inputs (optional - provide to run flows after upload)

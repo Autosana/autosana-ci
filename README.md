@@ -31,7 +31,7 @@ Shared optional inputs:
 - `name`: Display name for the app
 - `environment`: Environment name such as `staging` or `production`
 - `api-url`: Override the API base URL. Defaults to `https://backend.autosana.ai`
-- `variables`: Key-value variables exposed to flow instructions via `${env:KEY}`. Accepts either `KEY1=VALUE1,KEY2=VALUE2` or multiline `KEY=VALUE` pairs.
+- `variables`: Key-value variables exposed to flow instructions via `${env:KEY}`. Use `KEY1=VALUE1,KEY2=VALUE2`.
 - `suite-ids`: Comma-separated suite UUIDs to run after upload
 - `flow-ids`: Comma-separated flow UUIDs to run after upload
 
@@ -51,8 +51,6 @@ Platform-specific required inputs:
     build-path: build/app/outputs/flutter-apk/app-release.apk
     name: Example App
     environment: staging
-    variables: |
-      PR_NUMBER=${{ github.event.pull_request.number }}
-      BRANCH=${{ github.head_ref }}
+    variables: "TEST_ACCOUNT=qa-smoke,CHECKOUT_VARIANT=control"
     flow-ids: "uuid-1,uuid-2"
 ```
