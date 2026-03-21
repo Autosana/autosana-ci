@@ -16,6 +16,11 @@ echo "🎯 Platform: $PLATFORM"
 echo "🏷️  Environment: ${ENVIRONMENT:-<default>}"
 echo ""
 
+# Redact sensitive fields from payloads before logging
+_redact_payload() {
+  jq 'if has("variables") then .variables = "[REDACTED]" else . end'
+}
+
 # Check common required inputs
 if [ -z "$AUTOSANA_KEY" ] || [ -z "$PLATFORM" ]; then
   echo "❌ ERROR: Missing required inputs."
@@ -162,13 +167,15 @@ if [ "$PLATFORM" = "web" ]; then
     --arg commit_sha "$COMMIT_SHA" \
     --arg branch_name "$BRANCH_NAME" \
     --arg repo_full_name "$REPO_FULL_NAME" \
+    --arg variables "$VARIABLES" \
     '{app_id: $app_id, url: $url, name: $name, commit_sha: $commit_sha, branch_name: $branch_name, repo_full_name: $repo_full_name}
-     + (if $environment != "" then {environment: $environment} else {} end)')
+     + (if $environment != "" then {environment: $environment} else {} end)
+     + (if $variables != "" then {variables: $variables} else {} end)')
 
   echo "🔄 Registering web build with Autosana..."
   echo "   API Endpoint: $API_BASE_URL/api/ci/upload-web-build"
   echo "   Request Payload:"
-  echo "$WEB_PAYLOAD" | jq '.'
+  echo "$WEB_PAYLOAD" | _redact_payload | jq '.'
   echo ""
 
   RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/upload-web-build" \
@@ -393,6 +400,7 @@ CONFIRM_PAYLOAD=$(jq -n \
   --arg commit_sha "$COMMIT_SHA" \
   --arg branch_name "$BRANCH_NAME" \
   --arg repo_full_name "$REPO_FULL_NAME" \
+  --arg variables "$VARIABLES" \
   '{
     bundle_id: $bundle_id,
     platform: $platform,
@@ -401,10 +409,11 @@ CONFIRM_PAYLOAD=$(jq -n \
     commit_sha: $commit_sha,
     branch_name: $branch_name,
     repo_full_name: $repo_full_name
-  } + (if $environment != "" then {environment: $environment} else {} end)')
+  } + (if $environment != "" then {environment: $environment} else {} end)
+    + (if $variables != "" then {variables: $variables} else {} end)')
 
 echo "   Request Payload:"
-echo "$CONFIRM_PAYLOAD" | jq '.'
+echo "$CONFIRM_PAYLOAD" | _redact_payload | jq '.'
 echo ""
 
 CONFIRM_START_TIME=$(date +%s)
@@ -514,19 +523,23 @@ if [ "$PLATFORM" = "web" ]; then
   RUN_PAYLOAD=$(jq -n \
     --arg app_id "$APP_ID" \
     --arg environment "$ENVIRONMENT" \
+    --arg variables "$VARIABLES" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
     '{app_id: $app_id, flow_ids: $flow_ids, suite_ids: $suite_ids}
-     + (if $environment != "" then {environment: $environment} else {} end)')
+     + (if $environment != "" then {environment: $environment} else {} end)
+     + (if $variables != "" then {variables: $variables} else {} end)')
 else
   RUN_PAYLOAD=$(jq -n \
     --arg bundle_id "$BUNDLE_ID" \
     --arg platform "$PLATFORM" \
     --arg environment "$ENVIRONMENT" \
+    --arg variables "$VARIABLES" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
     '{bundle_id: $bundle_id, platform: $platform, flow_ids: $flow_ids, suite_ids: $suite_ids}
-     + (if $environment != "" then {environment: $environment} else {} end)')
+     + (if $environment != "" then {environment: $environment} else {} end)
+     + (if $variables != "" then {variables: $variables} else {} end)')
 fi
 
 echo "🔄 Triggering flows..."

@@ -21,6 +21,7 @@ _common_setup() {
     export APP_NAME=""
     export ENVIRONMENT=""
     export AUTOSANA_API_URL="http://mock-api.local"
+    export VARIABLES=""
     export SUITE_IDS=""
     export FLOW_IDS=""
 
