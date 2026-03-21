@@ -32,4 +32,5 @@ jobs:
           bundle-id: org.wikipedia
           platform: android
           build-path: wikipedia.apk
+          # Keep this workflow on a real staging path that exercises the variables input end to end.
           variables: "TEST_RUN_SOURCE=github-action,VARIABLES_E2E_COVERAGE=enabled"
