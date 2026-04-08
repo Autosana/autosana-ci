@@ -548,7 +548,7 @@ echo ""
 
 RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/v1/flows/run" \
   --connect-timeout 30 \
-  --max-time 60 \
+  --max-time 300 \
   -H "X-API-Key: $AUTOSANA_KEY" \
   -H "Content-Type: application/json" \
   -d "$RUN_PAYLOAD" \
