@@ -34,7 +34,7 @@ Shared optional inputs:
 - `variables`: Key-value variables exposed to flow instructions via `${env:KEY}`. Use `KEY1=VALUE1,KEY2=VALUE2`.
 - `suite-ids`: Comma-separated suite UUIDs to run after upload
 - `flow-ids`: Comma-separated flow UUIDs to run after upload
-- `web-browser`: Web only. Playwright engine to run on — `chromium` (default), `firefox`, or `edge`. Aliases accepted: `chrome` → `chromium`, `msedge` → `edge`. Ignored for mobile.
+- `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
 
 Platform-specific required inputs:
 

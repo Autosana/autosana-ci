@@ -50,7 +50,7 @@ inputs:
     description: "Comma-separated flow UUIDs to run (e.g., 'uuid1,uuid2')"
     required: false
   web-browser:
-    description: "[Web] Playwright engine to run on: chromium (default), firefox, or edge. Ignored for mobile platforms. Aliases accepted: chrome -> chromium, msedge -> edge."
+    description: "[Web] Playwright engine to run on: chrome (default, real Google Chrome with proprietary codecs / DRM), chromium (bundled engine, no codecs / DRM), firefox, or edge. Ignored for mobile platforms. Aliases accepted: msedge -> edge."
     required: false
 runs:
   using: "composite"
