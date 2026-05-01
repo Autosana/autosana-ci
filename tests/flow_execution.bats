@@ -118,6 +118,43 @@ setup() {
     assert_output --partial "All flows passed (1/2)"
 }
 
+# A real-world failing run usually has multiple buckets populated. Lock in
+# that the failure-message string surfaces all counts (PR-bot ask).
+@test "mixed results (failed+error+terminated+skipped) exits 1 with itemized counts" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_mixed_results.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "did not pass (failed: 1, error: 1, terminated: 1)"
+    assert_output --partial "Failed:  1"
+    assert_output --partial "Error:   1"
+    assert_output --partial "Terminated: 1"
+    assert_output --partial "Skipped: 1"
+}
+
+# Defense in depth: if total_flows is 0 (empty batch / API glitch), the
+# action must NOT print "All flows passed (0/0)" and exit 0. This was a
+# fail-open class flagged in PR review.
+@test "empty batch (TOTAL=0) fails closed instead of claiming success" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_empty_batch.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    refute_output --partial "All flows passed"
+}
+
+# Defense in depth: if the backend returns inconsistent counters such that
+# PASSED + SKIPPED > TOTAL (e.g. mismatched `// 0` fallbacks), a naive
+# subtraction would go negative and silently exit 0. Make sure we fail
+# closed instead — PR-bot regression.
+@test "inconsistent counters (PASSED+SKIPPED > TOTAL) fails closed" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_inconsistent_counters.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    refute_output --partial "All flows passed"
+}
+
 @test "web platform flow payload uses app_id not bundle_id" {
     export PLATFORM="web"
     export APP_ID="my-app"

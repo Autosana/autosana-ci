@@ -740,18 +740,25 @@ echo "   Flows:   $PASSED/$TOTAL passed"
 [ "$SKIPPED" != "0" ] && echo "   Skipped: $SKIPPED"
 echo ""
 
-# Anything that isn't `passed` or `skipped` is a failure. Computing this as
-# (TOTAL - PASSED - SKIPPED) instead of summing the bad buckets means we
-# fail closed if the backend ever introduces a new non-passing status
-# (e.g. `cancelled`, `timed_out`) — better to surface a CI failure than to
-# silently report green. This also fixes a regression where a run with
-# only TERMINATED flows (worker crash, infra issue, manual kill) exited 0
-# and printed "All flows passed!" — see customer report.
-UNSUCCESSFUL=$((TOTAL - PASSED - SKIPPED))
-if [ "$UNSUCCESSFUL" -gt 0 ]; then
-  echo "❌ $UNSUCCESSFUL flow(s) did not pass (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
-  exit 1
-else
+# Success requires (a) we actually ran something, and (b) every flow either
+# passed or was intentionally skipped (e.g. platform filter). Phrasing it as
+# an explicit positive condition — rather than `(TOTAL - PASSED - SKIPPED) > 0`
+# — fails closed in two edge cases:
+#   1. TOTAL == 0  (empty batch / API glitch returning zeros): subtracting
+#      would give 0 and silently exit 0 with "All flows passed (0/0)".
+#   2. PASSED + SKIPPED > TOTAL  (inconsistent counters, jq `// 0` fallback
+#      hitting siblings unevenly): subtracting would go negative and
+#      `-gt 0` would be false → silent exit 0, reintroducing the exact
+#      fail-open class this script is trying to close.
+# This also fixes the original customer report: a run with only TERMINATED
+# flows (worker crash, infra issue, manual kill) exited 0 and printed
+# "All flows passed!" because the previous logic only summed FAILED + ERROR.
+ACCOUNTED_FOR=$((PASSED + SKIPPED))
+if [ "$TOTAL" -gt 0 ] && [ "$ACCOUNTED_FOR" -eq "$TOTAL" ]; then
   echo "✅ All flows passed ($PASSED/$TOTAL)."
   exit 0
+else
+  UNACCOUNTED=$((TOTAL - ACCOUNTED_FOR))
+  echo "❌ $UNACCOUNTED flow(s) did not pass (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
+  exit 1
 fi

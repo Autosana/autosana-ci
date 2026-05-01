@@ -1,0 +1,55 @@
+{
+  "is_complete": true,
+  "run_groups": [
+    {
+      "name": "Smoke Tests",
+      "runs": [
+        {
+          "id": "run-1",
+          "name": "Login Flow",
+          "status": "passed",
+          "url": "https://app.autosana.ai/runs/run-1",
+          "summary": ""
+        },
+        {
+          "id": "run-2",
+          "name": "Checkout Flow",
+          "status": "failed",
+          "url": "https://app.autosana.ai/runs/run-2",
+          "summary": "Button not found"
+        },
+        {
+          "id": "run-3",
+          "name": "Search Flow",
+          "status": "error",
+          "url": "https://app.autosana.ai/runs/run-3",
+          "summary": "Network timeout"
+        },
+        {
+          "id": "run-4",
+          "name": "Profile Flow",
+          "status": "terminated",
+          "url": "https://app.autosana.ai/runs/run-4",
+          "summary": ""
+        },
+        {
+          "id": "run-5",
+          "name": "iOS-only Flow",
+          "status": "skipped",
+          "url": "https://app.autosana.ai/runs/run-5",
+          "summary": ""
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_groups": 1,
+    "passed_groups": 0,
+    "total_flows": 5,
+    "passed_flows": 1,
+    "failed_flows": 1,
+    "error_flows": 1,
+    "terminated_flows": 1,
+    "skipped_flows": 1
+  }
+}
