@@ -92,6 +92,87 @@ setup() {
     assert_output --partial "Failed:  1"
 }
 
+# Regression: a customer reported a run with 0/72 flows passed and 37
+# terminated still exited 0 with "✅ All flows passed!". Terminated flows
+# (worker crash, infra issue, manual kill) are not passes — they must
+# fail the action so CI surfaces the breakage instead of merging green.
+@test "all flows terminated exits 1 (regression)" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_terminated.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Terminated: 2"
+    assert_output --partial "did not pass"
+    assert_output --partial "terminated: 2"
+    refute_output --partial "All flows passed"
+}
+
+# Skipped flows are intentional (e.g. platform filter), so they shouldn't
+# fail the action. A run where every non-skipped flow passed should exit 0.
+@test "passed plus skipped flows exits 0" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_passed_with_skipped.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Skipped: 1"
+    assert_output --partial "All flows passed (1/2)"
+}
+
+# A real-world failing run usually has multiple buckets populated. Lock in
+# that the failure-message string surfaces all counts (PR-bot ask).
+@test "mixed results (failed+error+terminated+skipped) exits 1 with itemized counts" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_mixed_results.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "did not pass (failed: 1, error: 1, terminated: 1)"
+    assert_output --partial "Failed:  1"
+    assert_output --partial "Error:   1"
+    assert_output --partial "Terminated: 1"
+    assert_output --partial "Skipped: 1"
+}
+
+# A matrix CI job (e.g. `platform: ios`) can legitimately skip every flow
+# when the suite is android-only and vice versa. That should stay a green
+# build — but the previous message read "✅ All flows passed (0/2)." which
+# is self-contradictory (Cursor Bugbot Medium finding on 4c156b4). Assert
+# we still exit 0 and that the message is no longer a contradiction.
+@test "all flows skipped exits 0 with non-contradictory message" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_skipped.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "No applicable flows ran (0 passed, 2 skipped)"
+    refute_output --partial "All flows passed (0/"
+}
+
+# Defense in depth: if total_flows is 0 (empty batch / API glitch), the
+# action must NOT print "All flows passed (0/0)" and exit 0. This was a
+# fail-open class flagged in PR review.
+@test "empty batch (TOTAL=0) fails closed instead of claiming success" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_empty_batch.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    refute_output --partial "All flows passed"
+    assert_output --partial "No flows ran"
+}
+
+# Defense in depth: if the backend returns inconsistent counters such that
+# PASSED + SKIPPED > TOTAL (e.g. mismatched `// 0` fallbacks), a naive
+# subtraction would go negative and silently exit 0. Make sure we fail
+# closed AND emit a sensible message instead of "❌ -1 flow(s) did not
+# pass" — PR-bot regression (Cursor Bugbot Low finding on cf50cf0).
+@test "inconsistent counters (PASSED+SKIPPED > TOTAL) fails closed with a sensible message" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_inconsistent_counters.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    refute_output --partial "All flows passed"
+    assert_output --partial "Inconsistent run summary"
+    refute_output --regexp '❌ -[0-9]+ flow'
+}
+
 @test "web platform flow payload uses app_id not bundle_id" {
     export PLATFORM="web"
     export APP_ID="my-app"
