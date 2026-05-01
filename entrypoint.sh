@@ -518,17 +518,50 @@ else
   SUITE_IDS_JSON="[]"
 fi
 
-# Build the run-flows payload based on platform
+# On mobile platforms, WEB_BROWSER is documented as "ignored" (action.yml +
+# README) — emit a one-line warning so a mis-wired matrix workflow surfaces
+# the drop, but DON'T validate or hard-fail. Validation only matters for
+# web; failing a mobile upload because of a typo in a field that mobile
+# ignores would break the documented contract.
+if [ -n "$WEB_BROWSER" ] && [ "$PLATFORM" != "web" ]; then
+  echo "⚠️  'web-browser' is web-only; ignoring '$WEB_BROWSER' for platform '$PLATFORM'."
+fi
+
+# Validate WEB_BROWSER client-side for WEB platform only. Without this, a
+# typo like "firfox" round-trips to the API and surfaces as a generic 4xx;
+# failing locally with a clear message is much faster to act on. Aliases
+# (msedge, etc.) are accepted because the backend's normalize_web_browser
+# resolves them; we only reject inputs the backend wouldn't recognize.
+if [ "$PLATFORM" = "web" ] && [ -n "$WEB_BROWSER" ]; then
+  WEB_BROWSER_LOWER=$(echo "$WEB_BROWSER" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+  case "$WEB_BROWSER_LOWER" in
+    chrome|chromium|firefox|edge|msedge)
+      ;;
+    *)
+      echo "❌ ERROR: Unsupported 'web-browser' value: '$WEB_BROWSER'"
+      echo "   Allowed: chrome (default), chromium, firefox, edge"
+      echo "   Aliases: msedge -> edge"
+      exit 1
+      ;;
+  esac
+fi
+
+# Build the run-flows payload based on platform.
+# `web_browser` is only meaningful for web; we omit it for mobile so the
+# backend doesn't reject it as an extra field. Empty/unset WEB_BROWSER is
+# also omitted, letting the backend default kick in (chrome).
 if [ "$PLATFORM" = "web" ]; then
   RUN_PAYLOAD=$(jq -n \
     --arg app_id "$APP_ID" \
     --arg environment "$ENVIRONMENT" \
     --arg variables "$VARIABLES" \
+    --arg web_browser "$WEB_BROWSER" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
     '{app_id: $app_id, flow_ids: $flow_ids, suite_ids: $suite_ids}
      + (if $environment != "" then {environment: $environment} else {} end)
-     + (if $variables != "" then {variables: $variables} else {} end)')
+     + (if $variables != "" then {variables: $variables} else {} end)
+     + (if $web_browser != "" then {web_browser: $web_browser} else {} end)')
 else
   RUN_PAYLOAD=$(jq -n \
     --arg bundle_id "$BUNDLE_ID" \
@@ -544,6 +577,12 @@ fi
 
 echo "🔄 Triggering flows..."
 echo "   API Endpoint: $API_BASE_URL/api/v1/flows/run"
+echo "   Request Payload:"
+# Pipe through _redact_payload so the `variables` field (documented place
+# for user-supplied secrets like API tokens) doesn't leak into CI logs.
+# Every other payload echo in this script does this — the run-flows echo
+# is brand new; matching the existing convention.
+echo "$RUN_PAYLOAD" | _redact_payload | jq '.'
 echo ""
 
 RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/v1/flows/run" \
