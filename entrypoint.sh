@@ -757,8 +757,23 @@ ACCOUNTED_FOR=$((PASSED + SKIPPED))
 if [ "$TOTAL" -gt 0 ] && [ "$ACCOUNTED_FOR" -eq "$TOTAL" ]; then
   echo "✅ All flows passed ($PASSED/$TOTAL)."
   exit 0
+elif [ "$TOTAL" -le 0 ]; then
+  # No flows accounted for at all — empty batch / zeroed summary. Don't
+  # try to invent a count; just say so plainly.
+  echo "❌ No flows ran (TOTAL=$TOTAL). Refusing to report success."
+  exit 1
 else
+  # TOTAL > 0 but ACCOUNTED_FOR != TOTAL. In the normal case
+  # (ACCOUNTED_FOR < TOTAL) this is the count of non-passed, non-skipped
+  # flows. In the inconsistent-counters case (ACCOUNTED_FOR > TOTAL) the
+  # subtraction would be negative, which is meaningless to print — fall
+  # back to a generic message rather than emit "❌ -1 flow(s) did not pass".
   UNACCOUNTED=$((TOTAL - ACCOUNTED_FOR))
-  echo "❌ $UNACCOUNTED flow(s) did not pass (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
+  if [ "$UNACCOUNTED" -gt 0 ]; then
+    echo "❌ $UNACCOUNTED flow(s) did not pass (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
+  else
+    echo "❌ Inconsistent run summary: passed=$PASSED, skipped=$SKIPPED, total=$TOTAL (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
+  fi
   exit 1
 fi
+

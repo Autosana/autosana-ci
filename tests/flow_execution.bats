@@ -141,18 +141,22 @@ setup() {
     run bash "$ENTRYPOINT"
     assert_failure
     refute_output --partial "All flows passed"
+    assert_output --partial "No flows ran"
 }
 
 # Defense in depth: if the backend returns inconsistent counters such that
 # PASSED + SKIPPED > TOTAL (e.g. mismatched `// 0` fallbacks), a naive
 # subtraction would go negative and silently exit 0. Make sure we fail
-# closed instead — PR-bot regression.
-@test "inconsistent counters (PASSED+SKIPPED > TOTAL) fails closed" {
+# closed AND emit a sensible message instead of "❌ -1 flow(s) did not
+# pass" — PR-bot regression (Cursor Bugbot Low finding on cf50cf0).
+@test "inconsistent counters (PASSED+SKIPPED > TOTAL) fails closed with a sensible message" {
     export FLOW_IDS="uuid-1"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_inconsistent_counters.json"
     run bash "$ENTRYPOINT"
     assert_failure
     refute_output --partial "All flows passed"
+    assert_output --partial "Inconsistent run summary"
+    refute_output --regexp '❌ -[0-9]+ flow'
 }
 
 @test "web platform flow payload uses app_id not bundle_id" {
