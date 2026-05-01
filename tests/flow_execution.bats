@@ -137,6 +137,38 @@ setup() {
     export WEB_BROWSER="firefox"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
     run bash "$ENTRYPOINT"
+    assert_success
+    # Sanity check that we actually reached the run-flows step (otherwise an
+    # early-exit would make `refute_output` pass vacuously).
+    assert_output --partial "Running Flows"
+    # And the warning fires so users see the silent-drop avoided.
+    assert_output --partial "'web-browser' is web-only"
     # web_browser is only meaningful for web; mobile must not leak it.
     refute_output --partial '"web_browser"'
+}
+
+@test "validation rejects unknown web-browser values with a clear error" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export WEB_BROWSER="firfox"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Unsupported 'web-browser' value"
+    # Did not reach the API call.
+    refute_output --partial "Triggering flows"
+}
+
+@test "validation accepts web-browser aliases (chrome, msedge)" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export WEB_BROWSER="msedge"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    # Forwarded as-is; the backend's normalize_web_browser maps to canonical.
+    assert_output --partial '"web_browser": "msedge"'
 }

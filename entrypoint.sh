@@ -518,6 +518,31 @@ else
   SUITE_IDS_JSON="[]"
 fi
 
+# Validate WEB_BROWSER client-side. Without this, a typo like "firfox"
+# round-trips to the API and surfaces as a generic 4xx — failing locally
+# with a clear message is much faster to act on. Aliases (chrome, msedge,
+# etc.) are still accepted because the backend's normalize_web_browser
+# resolves them; we only reject inputs the backend wouldn't recognize.
+if [ -n "$WEB_BROWSER" ]; then
+  WEB_BROWSER_LOWER=$(echo "$WEB_BROWSER" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+  case "$WEB_BROWSER_LOWER" in
+    chromium|chrome|firefox|edge|msedge)
+      ;;
+    *)
+      echo "❌ ERROR: Unsupported 'web-browser' value: '$WEB_BROWSER'"
+      echo "   Allowed: chromium (default), firefox, edge"
+      echo "   Aliases: chrome -> chromium, msedge -> edge"
+      exit 1
+      ;;
+  esac
+fi
+
+# Warn instead of silently dropping if user passed web-browser on mobile.
+# Catches mis-wired matrices where one job sets WEB_BROWSER for all platforms.
+if [ -n "$WEB_BROWSER" ] && [ "$PLATFORM" != "web" ]; then
+  echo "⚠️  'web-browser' is web-only; ignoring '$WEB_BROWSER' for platform '$PLATFORM'."
+fi
+
 # Build the run-flows payload based on platform.
 # `web_browser` is only meaningful for web; we omit it for mobile so the
 # backend doesn't reject it as an extra field. Empty/unset WEB_BROWSER is
@@ -550,7 +575,11 @@ fi
 echo "🔄 Triggering flows..."
 echo "   API Endpoint: $API_BASE_URL/api/v1/flows/run"
 echo "   Request Payload:"
-echo "$RUN_PAYLOAD" | jq '.'
+# Pipe through _redact_payload so the `variables` field (documented place
+# for user-supplied secrets like API tokens) doesn't leak into CI logs.
+# Every other payload echo in this script does this — the run-flows echo
+# is brand new; matching the existing convention.
+echo "$RUN_PAYLOAD" | _redact_payload | jq '.'
 echo ""
 
 RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/v1/flows/run" \
