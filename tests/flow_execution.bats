@@ -160,6 +160,31 @@ setup() {
     refute_output --partial "Triggering flows"
 }
 
+@test "invalid web-browser on mobile warns but doesn't hard-fail (cursor[bot] regression)" {
+    # Regression for cursor[bot] Medium finding: validation must NOT run on
+    # mobile platforms — action.yml + README document web-browser as
+    # "ignored for mobile", so a typo there should warn-and-continue, not
+    # hard-fail the upload. Previously the validation block ran
+    # unconditionally and a misconfigured matrix workflow with
+    # `web-browser: firfox` + `platform: android` would fail the upload.
+    export PLATFORM="android"
+    export BUNDLE_ID="com.example.app"
+    export BUILD_PATH="$PROJECT_ROOT/tests/fixtures/dummy.apk"
+    export FLOW_IDS="uuid-1"
+    export WEB_BROWSER="firfox"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    # The warning fires.
+    assert_output --partial "'web-browser' is web-only"
+    # And we proceed to the upload + run-flows step (mobile contract).
+    assert_output --partial "Running Flows"
+    # And we did NOT hard-fail with the validation error.
+    refute_output --partial "Unsupported 'web-browser' value"
+    # And the mobile payload still doesn't leak web_browser into the API call.
+    refute_output --partial '"web_browser"'
+}
+
 @test "validation accepts web-browser aliases (chrome, msedge)" {
     export PLATFORM="web"
     export APP_ID="my-app"

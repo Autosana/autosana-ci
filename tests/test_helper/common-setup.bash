@@ -24,6 +24,13 @@ _common_setup() {
     export VARIABLES=""
     export SUITE_IDS=""
     export FLOW_IDS=""
+    # Initialize WEB_BROWSER explicitly so a stray value in the outer shell
+    # (developer's local env, CI runner inheriting from a parent process)
+    # doesn't leak into tests that don't override it. Validation in
+    # entrypoint.sh exits 1 on unrecognized values for web platforms, so an
+    # uninitialized WEB_BROWSER like "develop" or "main" could otherwise
+    # cause spurious failures across most tests.
+    export WEB_BROWSER=""
 
     # GitHub env vars (mocked)
     export GITHUB_EVENT_PATH="$PROJECT_ROOT/tests/fixtures/github_event_push.json"
