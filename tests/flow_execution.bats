@@ -132,6 +132,20 @@ setup() {
     assert_output --partial "Skipped: 1"
 }
 
+# A matrix CI job (e.g. `platform: ios`) can legitimately skip every flow
+# when the suite is android-only and vice versa. That should stay a green
+# build — but the previous message read "✅ All flows passed (0/2)." which
+# is self-contradictory (Cursor Bugbot Medium finding on 4c156b4). Assert
+# we still exit 0 and that the message is no longer a contradiction.
+@test "all flows skipped exits 0 with non-contradictory message" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_skipped.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "No applicable flows ran (0 passed, 2 skipped)"
+    refute_output --partial "All flows passed (0/"
+}
+
 # Defense in depth: if total_flows is 0 (empty batch / API glitch), the
 # action must NOT print "All flows passed (0/0)" and exit 0. This was a
 # fail-open class flagged in PR review.

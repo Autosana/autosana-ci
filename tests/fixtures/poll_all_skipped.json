@@ -1,0 +1,34 @@
+{
+  "is_complete": true,
+  "run_groups": [
+    {
+      "name": "iOS-only Suite",
+      "runs": [
+        {
+          "id": "run-1",
+          "name": "iOS Login Flow",
+          "status": "skipped",
+          "url": "https://app.autosana.ai/runs/run-1",
+          "summary": ""
+        },
+        {
+          "id": "run-2",
+          "name": "iOS Checkout Flow",
+          "status": "skipped",
+          "url": "https://app.autosana.ai/runs/run-2",
+          "summary": ""
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_groups": 1,
+    "passed_groups": 0,
+    "total_flows": 2,
+    "passed_flows": 0,
+    "failed_flows": 0,
+    "error_flows": 0,
+    "terminated_flows": 0,
+    "skipped_flows": 2
+  }
+}

@@ -755,7 +755,16 @@ echo ""
 # "All flows passed!" because the previous logic only summed FAILED + ERROR.
 ACCOUNTED_FOR=$((PASSED + SKIPPED))
 if [ "$TOTAL" -gt 0 ] && [ "$ACCOUNTED_FOR" -eq "$TOTAL" ]; then
-  echo "✅ All flows passed ($PASSED/$TOTAL)."
+  if [ "$PASSED" -gt 0 ]; then
+    echo "✅ All flows passed ($PASSED/$TOTAL)."
+  else
+    # Every flow was intentionally skipped (e.g. matrix slot where the
+    # platform filter excluded everything). This is still a green build —
+    # users rely on it for `platform: ios` jobs that skip android-only
+    # flows and vice versa — but the previous "All flows passed (0/N)"
+    # message was self-contradictory. Be explicit instead.
+    echo "✅ No applicable flows ran (0 passed, $SKIPPED skipped)."
+  fi
   exit 0
 elif [ "$TOTAL" -le 0 ]; then
   # No flows accounted for at all — empty batch / zeroed summary. Don't
