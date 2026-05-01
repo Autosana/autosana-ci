@@ -518,17 +518,22 @@ else
   SUITE_IDS_JSON="[]"
 fi
 
-# Build the run-flows payload based on platform
+# Build the run-flows payload based on platform.
+# `web_browser` is only meaningful for web; we omit it for mobile so the
+# backend doesn't reject it as an extra field. Empty/unset BROWSER is also
+# omitted, letting the backend default kick in (chromium).
 if [ "$PLATFORM" = "web" ]; then
   RUN_PAYLOAD=$(jq -n \
     --arg app_id "$APP_ID" \
     --arg environment "$ENVIRONMENT" \
     --arg variables "$VARIABLES" \
+    --arg browser "$BROWSER" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
     '{app_id: $app_id, flow_ids: $flow_ids, suite_ids: $suite_ids}
      + (if $environment != "" then {environment: $environment} else {} end)
-     + (if $variables != "" then {variables: $variables} else {} end)')
+     + (if $variables != "" then {variables: $variables} else {} end)
+     + (if $browser != "" then {web_browser: $browser} else {} end)')
 else
   RUN_PAYLOAD=$(jq -n \
     --arg bundle_id "$BUNDLE_ID" \
@@ -544,6 +549,8 @@ fi
 
 echo "🔄 Triggering flows..."
 echo "   API Endpoint: $API_BASE_URL/api/v1/flows/run"
+echo "   Request Payload:"
+echo "$RUN_PAYLOAD" | jq '.'
 echo ""
 
 RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/v1/flows/run" \
