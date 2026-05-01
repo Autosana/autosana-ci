@@ -92,6 +92,32 @@ setup() {
     assert_output --partial "Failed:  1"
 }
 
+# Regression: a customer reported a run with 0/72 flows passed and 37
+# terminated still exited 0 with "✅ All flows passed!". Terminated flows
+# (worker crash, infra issue, manual kill) are not passes — they must
+# fail the action so CI surfaces the breakage instead of merging green.
+@test "all flows terminated exits 1 (regression)" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_terminated.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Terminated: 2"
+    assert_output --partial "did not pass"
+    assert_output --partial "terminated: 2"
+    refute_output --partial "All flows passed"
+}
+
+# Skipped flows are intentional (e.g. platform filter), so they shouldn't
+# fail the action. A run where every non-skipped flow passed should exit 0.
+@test "passed plus skipped flows exits 0" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_passed_with_skipped.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Skipped: 1"
+    assert_output --partial "All flows passed (1/2)"
+}
+
 @test "web platform flow payload uses app_id not bundle_id" {
     export PLATFORM="web"
     export APP_ID="my-app"

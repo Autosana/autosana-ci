@@ -740,11 +740,18 @@ echo "   Flows:   $PASSED/$TOTAL passed"
 [ "$SKIPPED" != "0" ] && echo "   Skipped: $SKIPPED"
 echo ""
 
-UNSUCCESSFUL=$((FAILED + ERROR_COUNT))
+# Anything that isn't `passed` or `skipped` is a failure. Computing this as
+# (TOTAL - PASSED - SKIPPED) instead of summing the bad buckets means we
+# fail closed if the backend ever introduces a new non-passing status
+# (e.g. `cancelled`, `timed_out`) — better to surface a CI failure than to
+# silently report green. This also fixes a regression where a run with
+# only TERMINATED flows (worker crash, infra issue, manual kill) exited 0
+# and printed "All flows passed!" — see customer report.
+UNSUCCESSFUL=$((TOTAL - PASSED - SKIPPED))
 if [ "$UNSUCCESSFUL" -gt 0 ]; then
-  echo "❌ $UNSUCCESSFUL flow(s) did not pass."
+  echo "❌ $UNSUCCESSFUL flow(s) did not pass (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
   exit 1
 else
-  echo "✅ All flows passed!"
+  echo "✅ All flows passed ($PASSED/$TOTAL)."
   exit 0
 fi
