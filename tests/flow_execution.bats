@@ -105,36 +105,36 @@ setup() {
 
 # --- Browser engine selection (web only) ---
 
-@test "web payload includes web_browser when BROWSER is set" {
+@test "web payload includes web_browser when WEB_BROWSER is set" {
     export PLATFORM="web"
     export APP_ID="my-app"
     export URL="https://example.com"
     export FLOW_IDS="uuid-1"
-    export BROWSER="firefox"
+    export WEB_BROWSER="firefox"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
     run bash "$ENTRYPOINT"
     assert_success
     assert_output --partial '"web_browser": "firefox"'
 }
 
-@test "web payload omits web_browser when BROWSER is empty (backend default)" {
+@test "web payload omits web_browser when WEB_BROWSER is empty (backend default)" {
     export PLATFORM="web"
     export APP_ID="my-app"
     export URL="https://example.com"
     export FLOW_IDS="uuid-1"
-    export BROWSER=""
+    export WEB_BROWSER=""
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
     run bash "$ENTRYPOINT"
     assert_success
     refute_output --partial '"web_browser"'
 }
 
-@test "mobile payload never includes web_browser even when BROWSER is set" {
+@test "mobile payload never includes web_browser even when WEB_BROWSER is set" {
     export PLATFORM="android"
     export BUNDLE_ID="com.example.app"
     export BUILD_PATH="$PROJECT_ROOT/tests/fixtures/dummy.apk"
     export FLOW_IDS="uuid-1"
-    export BROWSER="firefox"
+    export WEB_BROWSER="firefox"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
     run bash "$ENTRYPOINT"
     # web_browser is only meaningful for web; mobile must not leak it.
