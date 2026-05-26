@@ -35,6 +35,7 @@ Shared optional inputs:
 - `suite-ids`: Comma-separated suite UUIDs to run after upload
 - `flow-ids`: Comma-separated flow UUIDs to run after upload
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
+- `poll-timeout-seconds`: Maximum seconds to wait for triggered flows before failing the action. Defaults to `1800`.
 
 Platform-specific required inputs:
 
@@ -54,4 +55,5 @@ Platform-specific required inputs:
     environment: staging
     variables: "TEST_ACCOUNT=qa-smoke,CHECKOUT_VARIANT=control"
     flow-ids: "uuid-1,uuid-2"
+    poll-timeout-seconds: "1200"
 ```

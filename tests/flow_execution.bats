@@ -278,3 +278,22 @@ setup() {
     # Forwarded as-is; the backend's normalize_web_browser maps to canonical.
     assert_output --partial '"web_browser": "msedge"'
 }
+
+@test "polling times out instead of hanging forever" {
+    export FLOW_IDS="uuid-1"
+    export POLL_TIMEOUT_SECONDS="0"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_in_progress.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Timed out waiting for Autosana flows"
+    assert_output --partial "Batch ID: batch-001"
+}
+
+@test "poll timeout rejects non-numeric values" {
+    export FLOW_IDS="uuid-1"
+    export POLL_TIMEOUT_SECONDS="soon"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Invalid poll-timeout-seconds value"
+    refute_output --partial "Waiting for results"
+}

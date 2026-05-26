@@ -52,6 +52,10 @@ inputs:
   web-browser:
     description: "[Web] Playwright engine to run on: chrome (default, real Google Chrome with proprietary codecs / DRM), chromium (bundled engine, no codecs / DRM), firefox, or edge. Ignored for mobile platforms. Aliases accepted: msedge -> edge."
     required: false
+  poll-timeout-seconds:
+    description: "Maximum seconds to wait for triggered flows before failing the action. Set to 0 to fail immediately if the first status poll is incomplete."
+    required: false
+    default: "1800"
 runs:
   using: "composite"
   steps:
@@ -78,3 +82,4 @@ runs:
         SUITE_IDS: ${{ inputs.suite-ids }}
         FLOW_IDS: ${{ inputs.flow-ids }}
         WEB_BROWSER: ${{ inputs.web-browser }}
+        POLL_TIMEOUT_SECONDS: ${{ inputs.poll-timeout-seconds }}

@@ -1,0 +1,26 @@
+{
+  "is_complete": false,
+  "run_groups": [
+    {
+      "name": "Smoke",
+      "runs": [
+        {
+          "id": "run-1",
+          "name": "Login smoke",
+          "status": "running",
+          "url": "https://autosana.ai/runs/run-1"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_groups": 1,
+    "passed_groups": 0,
+    "total_flows": 1,
+    "passed_flows": 0,
+    "failed_flows": 0,
+    "error_flows": 0,
+    "terminated_flows": 0,
+    "skipped_flows": 0
+  }
+}

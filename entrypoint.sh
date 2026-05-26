@@ -505,6 +505,15 @@ echo "🔬 Running Flows"
 echo "🔬 ========================================"
 echo ""
 
+POLL_INTERVAL=15
+POLL_TIMEOUT_SECONDS="${POLL_TIMEOUT_SECONDS:-1800}"
+
+if ! echo "$POLL_TIMEOUT_SECONDS" | grep -qE '^[0-9]+$'; then
+  echo "❌ ERROR: Invalid poll-timeout-seconds value: '$POLL_TIMEOUT_SECONDS'"
+  echo "   Must be a non-negative integer number of seconds."
+  exit 1
+fi
+
 # Convert comma-separated IDs to JSON arrays (strip whitespace)
 if [ -n "$FLOW_IDS" ]; then
   FLOW_IDS_JSON=$(echo "$FLOW_IDS" | tr -d ' ' | tr ',' '\n' | sed '/^$/d' | jq -R . | jq -s .)
@@ -622,7 +631,25 @@ echo "   Batch ID: $BATCH_ID"
 echo ""
 
 # Polling configuration
-POLL_INTERVAL=15
+POLL_STARTED_AT=$(date +%s)
+
+_poll_elapsed_seconds() {
+  echo "$(($(date +%s) - POLL_STARTED_AT))"
+}
+
+_poll_timed_out() {
+  [ "$(_poll_elapsed_seconds)" -ge "$POLL_TIMEOUT_SECONDS" ]
+}
+
+_fail_poll_timeout() {
+  echo "❌ ERROR: Timed out waiting for Autosana flows after $(_poll_elapsed_seconds)s (limit: ${POLL_TIMEOUT_SECONDS}s)."
+  echo "   Batch ID: $BATCH_ID"
+  echo "   Last status response: ${STATUS_RESPONSE:-<none>}"
+  exit 1
+}
+
+echo "   Poll timeout: ${POLL_TIMEOUT_SECONDS}s"
+
 PRINTED_IDS_FILE=$(mktemp)
 trap "rm -f $PRINTED_IDS_FILE" EXIT
 
@@ -660,6 +687,9 @@ while true; do
 
   if ! echo "$STATUS_RESPONSE" | jq empty 2>/dev/null; then
     echo "   ⚠ Warning: Invalid response from status API, retrying..."
+    if _poll_timed_out; then
+      _fail_poll_timeout
+    fi
     sleep "$POLL_INTERVAL"
     continue
   fi
@@ -711,6 +741,10 @@ while true; do
   IS_COMPLETE=$(echo "$STATUS_RESPONSE" | jq -r '.is_complete')
   if [ "$IS_COMPLETE" = "true" ]; then
     break
+  fi
+
+  if _poll_timed_out; then
+    _fail_poll_timeout
   fi
 
   sleep "$POLL_INTERVAL"
@@ -785,4 +819,3 @@ else
   fi
   exit 1
 fi
-
