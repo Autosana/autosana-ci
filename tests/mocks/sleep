@@ -1,3 +1,6 @@
 #!/usr/bin/env bash
 # no-op: skip all sleeps during tests
+if [ -n "$MOCK_SLEEP_LOG" ]; then
+    echo "$*" >> "$MOCK_SLEEP_LOG"
+fi
 exit 0

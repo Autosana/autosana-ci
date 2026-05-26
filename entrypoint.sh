@@ -637,6 +637,15 @@ _poll_elapsed_seconds() {
   echo "$(($(date +%s) - POLL_STARTED_AT))"
 }
 
+_poll_remaining_seconds() {
+  REMAINING=$((POLL_TIMEOUT_SECONDS - $(_poll_elapsed_seconds)))
+  if [ "$REMAINING" -gt 0 ]; then
+    echo "$REMAINING"
+  else
+    echo 0
+  fi
+}
+
 _poll_timed_out() {
   [ "$(_poll_elapsed_seconds)" -ge "$POLL_TIMEOUT_SECONDS" ]
 }
@@ -648,13 +657,32 @@ _fail_poll_timeout() {
   exit 1
 }
 
+_sleep_before_next_poll() {
+  REMAINING=$(_poll_remaining_seconds)
+  if [ "$REMAINING" -le 0 ]; then
+    _fail_poll_timeout
+  fi
+
+  if [ "$REMAINING" -lt "$POLL_INTERVAL" ]; then
+    sleep "$REMAINING"
+  else
+    sleep "$POLL_INTERVAL"
+  fi
+}
+
 echo "   Poll timeout: ${POLL_TIMEOUT_SECONDS}s"
 
 PRINTED_IDS_FILE=$(mktemp)
 trap "rm -f $PRINTED_IDS_FILE" EXIT
 
 # Initial poll to show all flow links upfront
-sleep 2
+INITIAL_SLEEP=$(_poll_remaining_seconds)
+if [ "$INITIAL_SLEEP" -gt 2 ]; then
+  INITIAL_SLEEP=2
+fi
+if [ "$INITIAL_SLEEP" -gt 0 ]; then
+  sleep "$INITIAL_SLEEP"
+fi
 INIT_RESPONSE=$(curl -s -X GET "$API_BASE_URL/api/v1/runs/status?batch_id=$BATCH_ID" \
   --connect-timeout 30 \
   --max-time 30 \
@@ -676,6 +704,17 @@ if echo "$INIT_RESPONSE" | jq empty 2>/dev/null; then
   echo ""
 fi
 
+if echo "$INIT_RESPONSE" | jq empty 2>/dev/null; then
+  INIT_COMPLETE=$(echo "$INIT_RESPONSE" | jq -r '.is_complete')
+  if [ "$INIT_COMPLETE" != "true" ] && _poll_timed_out; then
+    STATUS_RESPONSE="$INIT_RESPONSE"
+    _fail_poll_timeout
+  fi
+elif _poll_timed_out; then
+  STATUS_RESPONSE="$INIT_RESPONSE"
+  _fail_poll_timeout
+fi
+
 echo "⏳ Waiting for results..."
 echo ""
 
@@ -690,7 +729,7 @@ while true; do
     if _poll_timed_out; then
       _fail_poll_timeout
     fi
-    sleep "$POLL_INTERVAL"
+    _sleep_before_next_poll
     continue
   fi
 
@@ -747,7 +786,7 @@ while true; do
     _fail_poll_timeout
   fi
 
-  sleep "$POLL_INTERVAL"
+  _sleep_before_next_poll
 done
 
 # Final summary

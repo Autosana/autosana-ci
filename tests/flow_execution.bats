@@ -289,6 +289,19 @@ setup() {
     assert_output --partial "Batch ID: batch-001"
 }
 
+@test "zero poll timeout checks status before any startup sleep" {
+    export FLOW_IDS="uuid-1"
+    export POLL_TIMEOUT_SECONDS="0"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_in_progress.json"
+    export MOCK_SLEEP_LOG="$BATS_TEST_TMPDIR/sleeps.log"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Timed out waiting for Autosana flows"
+    if [ -f "$MOCK_SLEEP_LOG" ]; then
+        refute grep -Fx "2" "$MOCK_SLEEP_LOG"
+    fi
+}
+
 @test "poll timeout rejects non-numeric values" {
     export FLOW_IDS="uuid-1"
     export POLL_TIMEOUT_SECONDS="soon"
