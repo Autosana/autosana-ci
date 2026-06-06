@@ -32,6 +32,66 @@ setup() {
     assert_output --partial "Running Flows"
 }
 
+# --- No-wait (fire-and-forget) mode ---
+
+@test "wait=false triggers flows then exits 0 without polling for results" {
+    export FLOW_IDS="uuid-1"
+    export WAIT="false"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Triggered"
+    assert_output --partial "Not waiting for results (wait: false)"
+    # It must NOT enter the polling loop or print a results summary.
+    refute_output --partial "Waiting for results..."
+    refute_output --partial "Results Summary"
+}
+
+@test "wait=false ignores failing flow status and still exits 0" {
+    # Fire-and-forget means CI is not gated on results. The initial status GET
+    # (best-effort, for printing links) returns a fixture where a flow has
+    # already failed — proven by the failed flow's link appearing in output —
+    # yet the action must still exit 0 and never run the pass/fail gate.
+    export FLOW_IDS="uuid-1"
+    export WAIT="false"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_some_failed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    # The failure-shaped status was actually fetched on the path we reached.
+    assert_output --partial "Checkout Flow"
+    # ...but no gating / summary logic ran.
+    assert_output --partial "Not waiting for results (wait: false)"
+    refute_output --partial "did not pass"
+    refute_output --partial "Results Summary"
+}
+
+@test "invalid wait value fails fast with a clear error" {
+    export FLOW_IDS="uuid-1"
+    export WAIT="nope"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Unsupported 'wait' value"
+    # Must not have triggered flows with a bad config.
+    refute_output --partial "Triggering flows"
+}
+
+@test "wait flag is case-insensitive (False)" {
+    export FLOW_IDS="uuid-1"
+    export WAIT="False"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Not waiting for results (wait: false)"
+}
+
+@test "wait defaults to blocking when unset" {
+    export FLOW_IDS="uuid-1"
+    unset WAIT
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Waiting for results..."
+    assert_output --partial "All flows passed"
+}
+
 # --- run-flows API errors ---
 
 @test "run-flows API returns HTTP 500" {

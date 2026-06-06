@@ -24,6 +24,9 @@ _common_setup() {
     export VARIABLES=""
     export SUITE_IDS=""
     export FLOW_IDS=""
+    # Default to the blocking (wait) behavior so existing tests assert on the
+    # full poll + summary path. No-wait tests override this explicitly.
+    export WAIT="true"
     # Initialize WEB_BROWSER explicitly so a stray value in the outer shell
     # (developer's local env, CI runner inheriting from a parent process)
     # doesn't leak into tests that don't override it. Validation in

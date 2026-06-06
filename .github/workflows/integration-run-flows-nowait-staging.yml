@@ -1,0 +1,34 @@
+name: "Integration: Run Flows No-Wait (Staging)"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  run-flows-nowait:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Fire-and-forget: trigger flows and exit immediately without polling.
+      # The step should finish in seconds (just the trigger + initial link
+      # fetch), not wait for the flows to run on Autosana. The tight timeout
+      # is the assertion: if wait:false ever regresses to blocking, this step
+      # would poll until the flows finish and blow past the limit.
+      - name: Trigger flows without waiting (staging)
+        id: trigger
+        timeout-minutes: 2
+        uses: ./
+        with:
+          api-key: ${{ secrets.AUTOSANA_STAGING_KEY }}
+          api-url: https://staging.autosana.ai
+          platform: web
+          name: The Internet
+          app-id: the-internet
+          url: https://the-internet.herokuapp.com/
+          flow-ids: "9ae9c810-631f-472e-ba7d-9ca3b9f6820c,feeec631-bed1-43fe-ac16-ed65e4b9bd19"
+          wait: false
