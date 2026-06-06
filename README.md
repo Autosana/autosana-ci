@@ -35,6 +35,22 @@ Shared optional inputs:
 - `suite-ids`: Comma-separated suite UUIDs to run after upload
 - `flow-ids`: Comma-separated flow UUIDs to run after upload
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
+- `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Only applies when `suite-ids` or `flow-ids` are provided.
+
+### Fire-and-forget runs
+
+By default, when you pass `suite-ids`/`flow-ids` the action waits for the flows to finish so the job's exit code reflects the test result. To instead trigger the runs and let CI move on while tests execute on Autosana, set `wait: false`:
+
+```yaml
+- uses: autosana/autosana-ci@main
+  with:
+    api-key: ${{ secrets.AUTOSANA_KEY }}
+    platform: ios
+    bundle-id: com.example.app
+    build-path: ./build/MyApp.app
+    suite-ids: "uuid-1,uuid-2"
+    wait: false
+```
 
 Platform-specific required inputs:
 

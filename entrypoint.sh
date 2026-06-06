@@ -505,6 +505,12 @@ echo "🔬 Running Flows"
 echo "🔬 ========================================"
 echo ""
 
+# Normalize the wait flag. Default is "true" (block on results and gate the
+# job) to preserve the existing contract. "false" means fire-and-forget:
+# trigger the flows, print their links, and exit 0 without polling so CI
+# isn't held open while tests run on Autosana.
+WAIT_LOWER=$(echo "${WAIT:-true}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+
 # Convert comma-separated IDs to JSON arrays (strip whitespace)
 if [ -n "$FLOW_IDS" ]; then
   FLOW_IDS_JSON=$(echo "$FLOW_IDS" | tr -d ' ' | tr ',' '\n' | sed '/^$/d' | jq -R . | jq -s .)
@@ -647,6 +653,15 @@ if echo "$INIT_RESPONSE" | jq empty 2>/dev/null; then
     done
   done
   echo ""
+fi
+
+# Fire-and-forget: flows are triggered and running on Autosana. Don't block
+# the CI job on results — exit 0 now. The links above (and the dashboard)
+# are where users track progress.
+if [ "$WAIT_LOWER" = "false" ]; then
+  echo "🏃 Not waiting for results (wait: false)."
+  echo "   $FLOW_RUN_COUNT flow(s) are running on Autosana — track them at the links above or in the dashboard."
+  exit 0
 fi
 
 echo "⏳ Waiting for results..."

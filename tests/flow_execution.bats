@@ -32,6 +32,49 @@ setup() {
     assert_output --partial "Running Flows"
 }
 
+# --- No-wait (fire-and-forget) mode ---
+
+@test "wait=false triggers flows then exits 0 without polling for results" {
+    export FLOW_IDS="uuid-1"
+    export WAIT="false"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Triggered"
+    assert_output --partial "Not waiting for results (wait: false)"
+    # It must NOT enter the polling loop or print a results summary.
+    refute_output --partial "Waiting for results..."
+    refute_output --partial "Results Summary"
+}
+
+@test "wait=false still exits 0 even when flows would have failed" {
+    # Fire-and-forget means CI is not gated on results: a run that would fail
+    # under the blocking path must still exit 0 because we never poll it.
+    export FLOW_IDS="uuid-1"
+    export WAIT="false"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_some_failed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    refute_output --partial "did not pass"
+}
+
+@test "wait flag is case-insensitive (False)" {
+    export FLOW_IDS="uuid-1"
+    export WAIT="False"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Not waiting for results (wait: false)"
+}
+
+@test "wait defaults to blocking when unset" {
+    export FLOW_IDS="uuid-1"
+    unset WAIT
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Waiting for results..."
+    assert_output --partial "All flows passed"
+}
+
 # --- run-flows API errors ---
 
 @test "run-flows API returns HTTP 500" {
