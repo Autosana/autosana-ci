@@ -509,7 +509,21 @@ echo ""
 # job) to preserve the existing contract. "false" means fire-and-forget:
 # trigger the flows, print their links, and exit 0 without polling so CI
 # isn't held open while tests run on Autosana.
+#
+# Validate up front (like web-browser above) instead of treating anything
+# that isn't exactly "false" as "true". Otherwise a typo or synonym
+# (`no`, `0`, `off`, `fals`) silently falls through to the blocking path,
+# surprising someone who deliberately asked for no-wait.
 WAIT_LOWER=$(echo "${WAIT:-true}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+case "$WAIT_LOWER" in
+  true|false)
+    ;;
+  *)
+    echo "❌ ERROR: Unsupported 'wait' value: '$WAIT'"
+    echo "   Allowed: true (default, block on results), false (fire-and-forget)"
+    exit 1
+    ;;
+esac
 
 # Convert comma-separated IDs to JSON arrays (strip whitespace)
 if [ -n "$FLOW_IDS" ]; then
@@ -639,6 +653,7 @@ INIT_RESPONSE=$(curl -s -X GET "$API_BASE_URL/api/v1/runs/status?batch_id=$BATCH
   --max-time 30 \
   -H "X-API-Key: $AUTOSANA_KEY" || true)
 
+LINKS_PRINTED=false
 if echo "$INIT_RESPONSE" | jq empty 2>/dev/null; then
   echo "📋 Flows:"
   echo "$INIT_RESPONSE" | jq -c '.run_groups[]' 2>/dev/null | while IFS= read -r group; do
@@ -653,14 +668,22 @@ if echo "$INIT_RESPONSE" | jq empty 2>/dev/null; then
     done
   done
   echo ""
+  LINKS_PRINTED=true
 fi
 
 # Fire-and-forget: flows are triggered and running on Autosana. Don't block
-# the CI job on results — exit 0 now. The links above (and the dashboard)
-# are where users track progress.
+# the CI job on results — exit 0 now.
 if [ "$WAIT_LOWER" = "false" ]; then
   echo "🏃 Not waiting for results (wait: false)."
-  echo "   $FLOW_RUN_COUNT flow(s) are running on Autosana — track them at the links above or in the dashboard."
+  # Only point at "the links above" when we actually printed them. The
+  # initial status GET is best-effort (it can fail on a transient blip),
+  # and the blocking path tolerates that by retrying in the poll loop — but
+  # no-wait has no such retry, so don't promise links we didn't print.
+  if [ "$LINKS_PRINTED" = "true" ]; then
+    echo "   $FLOW_RUN_COUNT flow(s) are running on Autosana — track them at the links above or in the dashboard."
+  else
+    echo "   $FLOW_RUN_COUNT flow(s) are running on Autosana — track them in the dashboard (batch $BATCH_ID)."
+  fi
   exit 0
 fi
 
