@@ -11,9 +11,13 @@ echo ""
 # API Base URL - can be overridden for testing (staging, ngrok, etc.)
 # Default: production
 API_BASE_URL="${AUTOSANA_API_URL:-https://backend.autosana.ai}"
+CODE_SYNC="${CODE_SYNC:-off}"
+CODE_SYNC_PATH="${CODE_SYNC_PATH:-.autosana}"
+CODE_SYNC_FAIL_ON_CONFLICT="${CODE_SYNC_FAIL_ON_CONFLICT:-true}"
 echo "🌐 API Base URL: $API_BASE_URL"
 echo "🎯 Platform: $PLATFORM"
 echo "🏷️  Environment: ${ENVIRONMENT:-<default>}"
+echo "🔁 Code sync: $CODE_SYNC"
 echo ""
 
 # Redact sensitive fields from payloads before logging
@@ -22,15 +26,22 @@ _redact_payload() {
 }
 
 # Check common required inputs
-if [ -z "$AUTOSANA_KEY" ] || [ -z "$PLATFORM" ]; then
+if [ -z "$AUTOSANA_KEY" ] || { [ -z "$PLATFORM" ] && [ "$CODE_SYNC" = "off" ]; }; then
   echo "❌ ERROR: Missing required inputs."
   echo "   - AUTOSANA_KEY: ${AUTOSANA_KEY:+SET}${AUTOSANA_KEY:-NOT SET}"
   echo "   - PLATFORM: ${PLATFORM:+SET}${PLATFORM:-NOT SET}"
   exit 1
 fi
 
+if ! echo "$CODE_SYNC" | grep -qE '^(off|plan|import)$'; then
+  echo "❌ ERROR: Invalid code-sync '$CODE_SYNC'. Must be off, plan, or import."
+  exit 1
+fi
+
 # Validate platform and check platform-specific inputs
-if [ "$PLATFORM" = "web" ]; then
+if [ -z "$PLATFORM" ]; then
+  echo "🔁 Sync-only workflow detected"
+elif [ "$PLATFORM" = "web" ]; then
   echo "🌐 Web platform detected"
   echo "🔍 Checking web-specific environment variables..."
   echo "   AUTOSANA_KEY: ${AUTOSANA_KEY:0:10}... (${#AUTOSANA_KEY} chars)"
@@ -151,6 +162,48 @@ echo "   COMMIT_SHA: ${COMMIT_SHA:-not set}"
 echo "   BRANCH_NAME: ${BRANCH_NAME:-not set}"
 echo "   REPO_FULL_NAME: ${REPO_FULL_NAME:-not set}"
 echo ""
+
+run_code_sync() {
+  if [ "$CODE_SYNC" = "off" ]; then
+    return 0
+  fi
+
+  if ! command -v autosana >/dev/null 2>&1; then
+    echo "❌ ERROR: autosana CLI is required for code sync but was not found."
+    exit 1
+  fi
+
+  echo "🔁 Running Autosana code sync: $CODE_SYNC"
+  echo "   Path: $CODE_SYNC_PATH"
+  echo "   Commit SHA: ${COMMIT_SHA:-not set}"
+  echo "   Branch: ${BRANCH_NAME:-not set}"
+  echo "   Repository: ${REPO_FULL_NAME:-not set}"
+  echo ""
+
+  ARGS=(sync "$CODE_SYNC" --path "$CODE_SYNC_PATH" --api-url "$API_BASE_URL" --api-key "$AUTOSANA_KEY")
+  if [ -n "$REPO_FULL_NAME" ]; then
+    ARGS+=(--repo-full-name "$REPO_FULL_NAME")
+  fi
+  if [ -n "$COMMIT_SHA" ]; then
+    ARGS+=(--commit-sha "$COMMIT_SHA")
+  fi
+  if [ -n "$BRANCH_NAME" ]; then
+    ARGS+=(--branch-name "$BRANCH_NAME")
+  fi
+  if [ "$CODE_SYNC_FAIL_ON_CONFLICT" != "true" ]; then
+    ARGS+=(--no-fail-on-conflict)
+  fi
+
+  autosana "${ARGS[@]}"
+  echo ""
+}
+
+run_code_sync
+
+if [ -z "$PLATFORM" ]; then
+  echo "✅ Code sync complete."
+  exit 0
+fi
 
 # ============================================================
 # WEB PLATFORM FLOW
@@ -823,4 +876,3 @@ else
   fi
   exit 1
 fi
-
