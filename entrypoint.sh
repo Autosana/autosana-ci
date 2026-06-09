@@ -38,6 +38,19 @@ if ! echo "$CODE_SYNC" | grep -qE '^(off|plan|import)$'; then
   exit 1
 fi
 
+# Normalize and validate the fail-on-conflict boolean so a typo like "treu"
+# or "TRUE" can't silently flip to the unsafe --no-fail-on-conflict default.
+CODE_SYNC_FAIL_ON_CONFLICT_LOWER=$(echo "${CODE_SYNC_FAIL_ON_CONFLICT:-true}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+case "$CODE_SYNC_FAIL_ON_CONFLICT_LOWER" in
+  true|false)
+    ;;
+  *)
+    echo "❌ ERROR: Unsupported 'code-sync-fail-on-conflict' value: '$CODE_SYNC_FAIL_ON_CONFLICT'"
+    echo "   Allowed: true (default), false"
+    exit 1
+    ;;
+esac
+
 # Validate platform and check platform-specific inputs
 if [ -z "$PLATFORM" ]; then
   echo "🔁 Sync-only workflow detected"
@@ -180,7 +193,7 @@ run_code_sync() {
   echo "   Repository: ${REPO_FULL_NAME:-not set}"
   echo ""
 
-  ARGS=(sync "$CODE_SYNC" --path "$CODE_SYNC_PATH" --api-url "$API_BASE_URL" --api-key "$AUTOSANA_KEY")
+  ARGS=(sync "$CODE_SYNC" --path "$CODE_SYNC_PATH" --api-url "$API_BASE_URL")
   if [ -n "$REPO_FULL_NAME" ]; then
     ARGS+=(--repo-full-name "$REPO_FULL_NAME")
   fi
@@ -190,11 +203,14 @@ run_code_sync() {
   if [ -n "$BRANCH_NAME" ]; then
     ARGS+=(--branch-name "$BRANCH_NAME")
   fi
-  if [ "$CODE_SYNC_FAIL_ON_CONFLICT" != "true" ]; then
+  if [ "$CODE_SYNC_FAIL_ON_CONFLICT_LOWER" != "true" ]; then
     ARGS+=(--no-fail-on-conflict)
   fi
 
-  autosana "${ARGS[@]}"
+  # Pass the API key via env, not argv: argv is readable by concurrent
+  # processes on shared runners (/proc/<pid>/cmdline), matching how the
+  # curl calls in this script keep the key in a header.
+  AUTOSANA_API_KEY="$AUTOSANA_KEY" autosana "${ARGS[@]}"
   echo ""
 }
 

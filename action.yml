@@ -77,7 +77,7 @@ runs:
       shell: bash
     - name: Install Autosana CLI
       if: ${{ inputs.code-sync != 'off' }}
-      run: python -m pip install --upgrade autosana
+      run: python3 -m pip install --upgrade autosana
       shell: bash
     - run: ${{ github.action_path }}/entrypoint.sh
       shell: bash

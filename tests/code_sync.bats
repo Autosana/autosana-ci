@@ -64,6 +64,34 @@ setup() {
     assert_output --partial "--no-fail-on-conflict"
 }
 
+@test "code-sync fail-on-conflict normalizes case" {
+    export CODE_SYNC_FAIL_ON_CONFLICT="FALSE"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run cat "$MOCK_AUTOSANA_LOG"
+    assert_output --partial "--no-fail-on-conflict"
+}
+
+@test "code-sync rejects invalid fail-on-conflict value" {
+    export CODE_SYNC_FAIL_ON_CONFLICT="treu"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "Unsupported 'code-sync-fail-on-conflict' value"
+}
+
+@test "code-sync passes API key via env not argv" {
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run cat "$MOCK_AUTOSANA_LOG"
+    refute_output --partial "--api-key"
+    assert_output --partial "env-api-key=test-api-key-1234567890"
+}
+
 @test "upload-only web workflow does not call CLI" {
     export PLATFORM="web"
     export CODE_SYNC="off"

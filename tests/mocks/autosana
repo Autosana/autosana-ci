@@ -7,4 +7,5 @@ if [ -n "$MOCK_AUTOSANA_FAIL" ]; then
 fi
 
 echo "$*" >> "${MOCK_AUTOSANA_LOG:-/tmp/autosana-mock.log}"
+echo "env-api-key=${AUTOSANA_API_KEY:-unset}" >> "${MOCK_AUTOSANA_LOG:-/tmp/autosana-mock.log}"
 echo "Autosana CLI mock: $*"
