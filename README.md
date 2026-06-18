@@ -13,6 +13,30 @@ CI integration to upload new builds and trigger flows from GitHub workflows.
     build-path: build/app/outputs/flutter-apk/app-release.apk
 ```
 
+## iOS usage
+
+```yaml
+# Simulator build (zipped .app)
+- uses: autosana/autosana-ci@main
+  with:
+    api-key: ${{ secrets.AUTOSANA_KEY }}
+    platform: ios
+    bundle-id: com.example.app
+    build-path: build/MyApp.app.zip
+
+# Real-device build (.ipa) — required to run on physical devices
+- uses: autosana/autosana-ci@main
+  with:
+    api-key: ${{ secrets.AUTOSANA_KEY }}
+    platform: ios
+    bundle-id: com.example.app
+    build-path: build/MyApp.ipa
+```
+
+Upload the artifact with its real extension — don't re-zip a `.ipa`. The
+extension determines the target: a `.ipa` runs on **real devices**, while a
+zipped `.app` bundle (`.zip`) runs on the **iOS simulator**.
+
 ## Web usage
 
 ```yaml

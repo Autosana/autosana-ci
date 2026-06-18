@@ -1,0 +1,53 @@
+name: "Integration: Upload iOS IPA (Staging)"
+
+# Smoke test for the real-device (.ipa) upload path. Builds a minimal synthetic
+# .ipa (a Payload/.app bundle zipped) and uploads it through the action. The
+# action exits non-zero if start-upload / upload / confirm fail, so a green run
+# proves a .ipa flows cleanly through the action and API end to end.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build synthetic .ipa
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p Payload/IpaSmoke.app
+          cat > Payload/IpaSmoke.app/Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleIdentifier</key><string>com.vibetest.ipasmoke</string>
+            <key>CFBundleName</key><string>IpaSmoke</string>
+            <key>CFBundleExecutable</key><string>IpaSmoke</string>
+            <key>CFBundleVersion</key><string>1</string>
+            <key>CFBundleShortVersionString</key><string>1.0</string>
+          </dict>
+          </plist>
+          PLIST
+          printf '\x00' > Payload/IpaSmoke.app/IpaSmoke
+          zip -r -q smoke.ipa Payload
+          test -s smoke.ipa
+          echo "Built $(ls -lh smoke.ipa | awk '{print $5}') smoke.ipa"
+
+      - name: Upload to Autosana (staging)
+        uses: ./
+        with:
+          api-key: ${{ secrets.AUTOSANA_STAGING_KEY }}
+          api-url: https://staging.autosana.ai
+          name: IPA Smoke Test
+          bundle-id: com.vibetest.ipasmoke
+          platform: ios
+          build-path: smoke.ipa

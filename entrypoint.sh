@@ -248,6 +248,19 @@ echo "   Original BUILD_PATH: $BUILD_PATH"
 echo "   Extracted FILENAME: $FILENAME"
 echo "   File size: $(ls -lh "$BUILD_PATH" 2>/dev/null | awk '{print $5}' || echo 'File not found')"
 echo "   File permissions: $(ls -la "$BUILD_PATH" 2>/dev/null | awk '{print $1}' || echo 'File not found')"
+
+# Surface which iOS target this artifact maps to. The backend derives the
+# stored extension from the filename: .ipa -> real device, a zipped .app -> simulator.
+# A device build must be a .ipa; a re-zipped .ipa (.zip) is treated as a
+# simulator build and won't run on real devices.
+case "$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')" in
+  ios*)
+    case "$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')" in
+      *.ipa) echo "   iOS build type: real device (.ipa)" ;;
+      *)     echo "   iOS build type: simulator (zipped .app). Upload a .ipa to test on physical devices." ;;
+    esac
+    ;;
+esac
 echo ""
 
 echo "🎯 Starting upload for $FILENAME (from $BUILD_PATH) to Autosana..."
