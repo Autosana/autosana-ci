@@ -19,6 +19,30 @@ setup() {
     assert_output --partial "Upload completed successfully"
 }
 
+@test "ios .ipa is reported as a real-device build" {
+    export PLATFORM="ios"
+    export BUILD_PATH="$PROJECT_ROOT/tests/fixtures/dummy.ipa"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "iOS build type: real device (.ipa)"
+    assert_output --partial "Upload completed successfully"
+}
+
+@test "ios zipped .app is reported as a simulator build" {
+    export PLATFORM="ios"
+    export BUILD_PATH="$PROJECT_ROOT/tests/fixtures/dummy.app.zip"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "iOS build type: simulator"
+    assert_output --partial "Upload a .ipa to test on physical devices"
+}
+
+@test "android upload does not print iOS build type" {
+    run bash "$ENTRYPOINT"
+    assert_success
+    refute_output --partial "iOS build type"
+}
+
 @test "start-upload returns HTTP 500" {
     export MOCK_CURL_STATUS_START_UPLOAD=500
     run bash "$ENTRYPOINT"
