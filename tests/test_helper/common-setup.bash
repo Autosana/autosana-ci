@@ -24,6 +24,7 @@ _common_setup() {
     export VARIABLES=""
     export SUITE_IDS=""
     export FLOW_IDS=""
+    export TAGS=""
     # Default to the blocking (wait) behavior so existing tests assert on the
     # full poll + summary path. No-wait tests override this explicitly.
     export WAIT="true"

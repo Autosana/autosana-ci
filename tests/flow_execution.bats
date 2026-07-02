@@ -32,6 +32,66 @@ setup() {
     assert_output --partial "Running Flows"
 }
 
+# --- Tags ---
+
+@test "TAGS alone triggers flow execution" {
+    export TAGS="smoke"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Running Flows"
+    assert_output --partial "Triggered"
+}
+
+@test "TAGS are sent to run-flows as a JSON array of names" {
+    export TAGS="smoke, regression"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial '"tags"'
+    assert_output --partial '"smoke"'
+    assert_output --partial '"regression"'
+}
+
+@test "TAGS combine with FLOW_IDS (union) in the payload" {
+    export TAGS="smoke"
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial '"smoke"'
+    assert_output --partial '"uuid-1"'
+}
+
+@test "empty tags omit the run step (no TAGS/SUITE_IDS/FLOW_IDS exits 0)" {
+    export TAGS=""
+    run bash "$ENTRYPOINT"
+    assert_success
+    refute_output --partial "Running Flows"
+}
+
+# The backend resolves an unknown tag to an empty match and returns a 4xx;
+# the action must surface that as a failure rather than exit green.
+@test "unknown tag (backend 4xx / empty match) fails the action" {
+    export TAGS="does-not-exist"
+    export MOCK_CURL_STATUS_RUN_FLOWS=422
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Failed to trigger flows"
+}
+
+@test "web platform forwards tags in the run payload" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export TAGS="smoke"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial '"tags"'
+    assert_output --partial '"smoke"'
+}
+
 # --- No-wait (fire-and-forget) mode ---
 
 @test "wait=false triggers flows then exits 0 without polling for results" {

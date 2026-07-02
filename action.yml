@@ -49,6 +49,9 @@ inputs:
   flow-ids:
     description: "Comma-separated flow UUIDs to run (e.g., 'uuid1,uuid2')"
     required: false
+  tags:
+    description: "Comma-separated tag names to run (e.g., 'smoke,regression'). Runs the union of all suites and flows carrying any of these tags. Combine with suite-ids/flow-ids to add to the selection."
+    required: false
   web-browser:
     description: "[Web] Playwright engine to run on: chrome (default, real Google Chrome with proprietary codecs / DRM), chromium (bundled engine, no codecs / DRM), firefox, or edge. Ignored for mobile platforms. Aliases accepted: msedge -> edge."
     required: false
@@ -81,5 +84,6 @@ runs:
         # Flow execution
         SUITE_IDS: ${{ inputs.suite-ids }}
         FLOW_IDS: ${{ inputs.flow-ids }}
+        TAGS: ${{ inputs.tags }}
         WEB_BROWSER: ${{ inputs.web-browser }}
         WAIT: ${{ inputs.wait }}
