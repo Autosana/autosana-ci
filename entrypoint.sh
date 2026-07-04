@@ -505,10 +505,10 @@ echo "✅ Upload complete."
 fi
 
 # ============================================================
-# FLOW EXECUTION (optional — runs when suite-ids, flow-ids, or tags are provided)
+# FLOW EXECUTION (optional — runs when suite-ids, flow-ids, or labels are provided)
 # ============================================================
 
-if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$TAGS" ]; then
+if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$LABELS" ]; then
   exit 0
 fi
 
@@ -551,13 +551,13 @@ else
   SUITE_IDS_JSON="[]"
 fi
 
-# Tags resolve server-side to the union of matching suites + flows. We only
+# Labels resolve server-side to the union of matching suites + flows. We only
 # trim surrounding whitespace around each name (not internal spaces) since,
-# unlike UUIDs, a tag name could legitimately contain spaces.
-if [ -n "$TAGS" ]; then
-  TAGS_JSON=$(echo "$TAGS" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | sed '/^$/d' | jq -R . | jq -s .)
+# unlike UUIDs, a label name could legitimately contain spaces.
+if [ -n "$LABELS" ]; then
+  LABELS_JSON=$(echo "$LABELS" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | sed '/^$/d' | jq -R . | jq -s .)
 else
-  TAGS_JSON="[]"
+  LABELS_JSON="[]"
 fi
 
 # On mobile platforms, WEB_BROWSER is documented as "ignored" (action.yml +
@@ -600,8 +600,8 @@ if [ "$PLATFORM" = "web" ]; then
     --arg web_browser "$WEB_BROWSER" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
-    --argjson tags "$TAGS_JSON" \
-    '{app_id: $app_id, flow_ids: $flow_ids, suite_ids: $suite_ids, tags: $tags}
+    --argjson labels "$LABELS_JSON" \
+    '{app_id: $app_id, flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels}
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
      + (if $web_browser != "" then {web_browser: $web_browser} else {} end)')
@@ -613,8 +613,8 @@ else
     --arg variables "$VARIABLES" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
-    --argjson tags "$TAGS_JSON" \
-    '{bundle_id: $bundle_id, platform: $platform, flow_ids: $flow_ids, suite_ids: $suite_ids, tags: $tags}
+    --argjson labels "$LABELS_JSON" \
+    '{bundle_id: $bundle_id, platform: $platform, flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels}
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)')
 fi
