@@ -16,6 +16,7 @@ setup() {
 
 @test "missing PLATFORM exits 1" {
     unset PLATFORM
+    export CODE_SYNC="off"
     run bash "$ENTRYPOINT"
     assert_failure
     assert_output --partial "Missing required inputs"
@@ -24,9 +25,26 @@ setup() {
 @test "both AUTOSANA_KEY and PLATFORM missing exits 1" {
     unset AUTOSANA_KEY
     unset PLATFORM
+    export CODE_SYNC="off"
     run bash "$ENTRYPOINT"
     assert_failure
     assert_output --partial "Missing required inputs"
+}
+
+@test "missing PLATFORM is valid for code sync" {
+    unset PLATFORM
+    export CODE_SYNC="plan"
+    export MOCK_AUTOSANA_LOG="$BATS_TEST_TMPDIR/autosana.log"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Sync-only workflow detected"
+}
+
+@test "invalid code-sync exits 1" {
+    export CODE_SYNC="destroy"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Invalid code-sync"
 }
 
 # --- Invalid platform ---

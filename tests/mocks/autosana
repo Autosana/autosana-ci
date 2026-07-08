@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -e
+
+if [ -n "$MOCK_AUTOSANA_FAIL" ]; then
+  echo "autosana mock failure" >&2
+  exit 1
+fi
+
+echo "$*" >> "${MOCK_AUTOSANA_LOG:-/tmp/autosana-mock.log}"
+echo "env-api-key=${AUTOSANA_API_KEY:-unset}" >> "${MOCK_AUTOSANA_LOG:-/tmp/autosana-mock.log}"
+echo "Autosana CLI mock: $*"
