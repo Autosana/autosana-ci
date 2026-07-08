@@ -58,6 +58,7 @@ Shared optional inputs:
 - `variables`: Key-value variables exposed to flow instructions via `${env:KEY}`. Use `KEY1=VALUE1,KEY2=VALUE2`.
 - `suite-ids`: Comma-separated suite UUIDs to run after upload
 - `flow-ids`: Comma-separated flow UUIDs to run after upload
+- `labels`: Comma-separated label names to run after upload (e.g. `smoke` or `smoke,regression`). Runs the union of every suite and flow carrying any of the given labels, so you can replace long `flow-ids` lists with a single label. Combine with `suite-ids`/`flow-ids` to add to the selection. If no suite or flow matches, the action fails.
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
 - `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Only applies when `suite-ids` or `flow-ids` are provided.
 
@@ -83,6 +84,9 @@ Platform-specific required inputs:
 
 ## Example with optional inputs
 
+Instead of maintaining a long `flow-ids` list, label your suites and flows in
+Autosana and run them all by label:
+
 ```yaml
 - uses: autosana/autosana-ci@main
   with:
@@ -93,5 +97,5 @@ Platform-specific required inputs:
     name: Example App
     environment: staging
     variables: "TEST_ACCOUNT=qa-smoke,CHECKOUT_VARIANT=control"
-    flow-ids: "uuid-1,uuid-2"
+    labels: smoke
 ```

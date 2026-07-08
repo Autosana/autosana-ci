@@ -32,6 +32,66 @@ setup() {
     assert_output --partial "Running Flows"
 }
 
+# --- Labels ---
+
+@test "LABELS alone triggers flow execution" {
+    export LABELS="smoke"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Running Flows"
+    assert_output --partial "Triggered"
+}
+
+@test "LABELS are sent to run-flows as a JSON array of names" {
+    export LABELS="smoke, regression"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial '"labels"'
+    assert_output --partial '"smoke"'
+    assert_output --partial '"regression"'
+}
+
+@test "LABELS combine with FLOW_IDS (union) in the payload" {
+    export LABELS="smoke"
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial '"smoke"'
+    assert_output --partial '"uuid-1"'
+}
+
+@test "empty labels omit the run step (no LABELS/SUITE_IDS/FLOW_IDS exits 0)" {
+    export LABELS=""
+    run bash "$ENTRYPOINT"
+    assert_success
+    refute_output --partial "Running Flows"
+}
+
+# The backend resolves an unknown label to an empty match and returns a 4xx;
+# the action must surface that as a failure rather than exit green.
+@test "unknown label (backend 4xx / empty match) fails the action" {
+    export LABELS="does-not-exist"
+    export MOCK_CURL_STATUS_RUN_FLOWS=422
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Failed to trigger flows"
+}
+
+@test "web platform forwards labels in the run payload" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export LABELS="smoke"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial '"labels"'
+    assert_output --partial '"smoke"'
+}
+
 # --- No-wait (fire-and-forget) mode ---
 
 @test "wait=false triggers flows then exits 0 without polling for results" {
