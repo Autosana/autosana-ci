@@ -5,15 +5,15 @@ inputs:
     description: "Your Autosana API key"
     required: true
   platform:
-    description: "Platform: android, ios, or web"
+    description: "Platform: android, ios, web, or chrome-extension"
     required: true
 
-  # Mobile-specific inputs (required when platform is android or ios)
+  # Mobile / extension inputs (required when platform is android, ios, or chrome-extension)
   bundle-id:
-    description: "[Mobile] Your app's bundle ID"
+    description: "[Mobile/Extension] Your app's bundle ID, or a stable identifier for your extension (e.g. 'my-extension')"
     required: false
   build-path:
-    description: "[Mobile] Full path to the build artifact. Android: .apk or .aab. iOS: .ipa (real-device build) or a zipped .app bundle (.zip, simulator build)."
+    description: "[Mobile/Extension] Full path to the build artifact. Android: .apk or .aab. iOS: .ipa or a zipped .app bundle. Chrome extension: .zip of the unpacked Manifest V3 extension directory."
     required: false
 
   # Web-specific inputs (required when platform is web)

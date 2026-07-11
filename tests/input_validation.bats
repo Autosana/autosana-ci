@@ -128,6 +128,37 @@ setup() {
     assert_output --partial "Missing required inputs for mobile"
 }
 
+# --- Chrome extension validation ---
+
+@test "chrome-extension missing BUNDLE_ID exits 1" {
+    export PLATFORM="chrome-extension"
+    export BUNDLE_ID=""
+    export BUILD_PATH="$BATS_TEST_TMPDIR/extension.zip"
+    touch "$BUILD_PATH"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Missing required inputs for chrome-extension"
+}
+
+@test "chrome-extension rejects non-zip build" {
+    export PLATFORM="chrome-extension"
+    export BUNDLE_ID="my-extension"
+    export BUILD_PATH="$PROJECT_ROOT/tests/fixtures/dummy.apk"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "must be a .zip"
+}
+
+@test "valid chrome-extension inputs pass validation" {
+    export PLATFORM="chrome-extension"
+    export BUNDLE_ID="my-extension"
+    export BUILD_PATH="$BATS_TEST_TMPDIR/extension.zip"
+    touch "$BUILD_PATH"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Chrome extension platform detected"
+}
+
 # --- Valid inputs pass validation ---
 
 @test "valid web inputs pass validation" {

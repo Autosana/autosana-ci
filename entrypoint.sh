@@ -90,8 +90,37 @@ elif echo "$PLATFORM" | grep -qE '^(android|ios)'; then
     echo "   - BUILD_PATH: ${BUILD_PATH:+SET}${BUILD_PATH:-NOT SET}"
     exit 1
   fi
+elif [ "$PLATFORM" = "chrome-extension" ]; then
+  echo "🧩 Chrome extension platform detected"
+  echo "🔍 Checking extension-specific environment variables..."
+  echo "   AUTOSANA_KEY: ${AUTOSANA_KEY:0:10}... (${#AUTOSANA_KEY} chars)"
+  echo "   BUNDLE_ID: $BUNDLE_ID"
+  echo "   BUILD_PATH: $BUILD_PATH"
+  echo "   APP_NAME: ${APP_NAME:-<not set>}"
+  echo ""
+
+  # Extension uploads follow the mobile (artifact upload) flow: BUNDLE_ID is
+  # the extension's stable identifier (e.g. 'metamask'), BUILD_PATH is a zip
+  # of the UNPACKED Manifest V3 extension directory.
+  if [ -z "$BUNDLE_ID" ] || [ -z "$BUILD_PATH" ]; then
+    echo "❌ ERROR: Missing required inputs for chrome-extension platform."
+    echo "   Required variables:"
+    echo "   - AUTOSANA_KEY: ${AUTOSANA_KEY:+SET}${AUTOSANA_KEY:-NOT SET}"
+    echo "   - BUNDLE_ID: ${BUNDLE_ID:+SET}${BUNDLE_ID:-NOT SET} (extension identifier, e.g. 'my-extension')"
+    echo "   - BUILD_PATH: ${BUILD_PATH:+SET}${BUILD_PATH:-NOT SET} (zip of the unpacked MV3 extension directory)"
+    exit 1
+  fi
+
+  case "$BUILD_PATH" in
+    *.zip) ;;
+    *)
+      echo "❌ ERROR: chrome-extension builds must be a .zip of the unpacked (MV3) extension directory."
+      echo "   Provided: '$BUILD_PATH'"
+      exit 1
+      ;;
+  esac
 else
-  echo "❌ ERROR: Invalid platform '$PLATFORM'. Must start with 'android' or 'ios', or be 'web'."
+  echo "❌ ERROR: Invalid platform '$PLATFORM'. Must start with 'android' or 'ios', or be 'web' or 'chrome-extension'."
   exit 1
 fi
 
