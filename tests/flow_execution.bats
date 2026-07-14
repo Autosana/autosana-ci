@@ -5,6 +5,44 @@ setup() {
     _common_setup
 }
 
+# --- Upload environment payloads ---
+
+@test "chrome-extension upload omits ignored environment from start and confirm payloads" {
+    export PLATFORM="chrome-extension"
+    export BUNDLE_ID="my-extension"
+    export BUILD_PATH="$BATS_TEST_TMPDIR/extension.zip"
+    export ENVIRONMENT="does-not-exist"
+    touch "$BUILD_PATH"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial "Starting upload process"
+    assert_output --partial "Confirming upload"
+    refute_output --regexp '"environment"[[:space:]]*:'
+}
+
+@test "mobile upload preserves environment in payloads" {
+    export ENVIRONMENT="staging"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial '"environment": "staging"'
+}
+
+@test "web upload preserves environment in payload" {
+    export PLATFORM="web"
+    export APP_ID="my-web-app"
+    export URL="https://example.com"
+    export ENVIRONMENT="staging"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial '"environment": "staging"'
+}
+
 # --- No flow IDs means skip ---
 
 @test "no SUITE_IDS or FLOW_IDS exits 0 without running flows" {
@@ -302,6 +340,47 @@ setup() {
     run bash "$ENTRYPOINT"
     assert_success
     assert_output --partial '"app_id"'
+}
+
+# --- Per-run web dependency overrides ---
+
+@test "web run omits dependencies when input is omitted" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    refute_output --partial '"dependencies"'
+}
+
+@test "web run sends explicit empty dependencies array" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export DEPENDENCIES='[]'
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial '"dependencies": []'
+}
+
+@test "web run preserves dependency IDs and build pins as JSON" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export LABELS="smoke"
+    export DEPENDENCIES='["11111111-1111-1111-1111-111111111111",{"app_id":"22222222-2222-2222-2222-222222222222","app_build_id":"33333333-3333-3333-3333-333333333333"}]'
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial '"dependencies": ['
+    assert_output --partial '"11111111-1111-1111-1111-111111111111"'
+    assert_output --partial '"app_id": "22222222-2222-2222-2222-222222222222"'
+    assert_output --partial '"app_build_id": "33333333-3333-3333-3333-333333333333"'
+    refute_output --partial '"dependencies": "['
 }
 
 # --- Browser engine selection (web only) ---

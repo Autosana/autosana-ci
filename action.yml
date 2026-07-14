@@ -1,5 +1,5 @@
 name: "Autosana CI Upload"
-description: "Upload your mobile app or register a web app URL with Autosana"
+description: "Upload your mobile app or Chrome extension, or register a web app URL with Autosana"
 inputs:
   api-key:
     description: "Your Autosana API key"
@@ -29,7 +29,7 @@ inputs:
     description: "Display name for your app (optional, will update if app already exists)"
     required: false
   environment:
-    description: "Environment name to associate this app with (e.g., 'staging', 'production'). Apps with the same identifier (bundle ID for mobile, app-id for web) but different environments are treated as separate apps."
+    description: "Environment name to associate this app with (e.g., 'staging', 'production'). Apps with the same identifier (bundle ID for mobile, app-id for web) but different environments are treated as separate apps. Chrome extensions are organization-wide and ignore this input."
     required: false
 
   api-url:
@@ -55,8 +55,11 @@ inputs:
   web-browser:
     description: "[Web] Playwright engine to run on: chrome (default, real Google Chrome with proprietary codecs / DRM), chromium (bundled engine, no codecs / DRM), firefox, or edge. Ignored for mobile platforms. Aliases accepted: msedge -> edge."
     required: false
+  dependencies:
+    description: "[Web runs only] JSON array overriding the app's default extension loadout for this run. Omit to inherit defaults; use [] for none; entries may be app UUID strings or {\"app_id\":\"...\",\"app_build_id\":\"...\"} pins. Not supported for mobile or Chrome extension uploads."
+    required: false
   wait:
-    description: "Wait for triggered flows to finish and gate the job on their result (default: true). Set to 'false' to trigger the flows, print their run links, and exit immediately without blocking CI. Only applies when suite-ids or flow-ids are provided."
+    description: "Wait for triggered flows to finish and gate the job on their result (default: true). Set to 'false' to trigger the flows, print their run links, and exit immediately without blocking CI. Applies when suite-ids, flow-ids, or labels trigger tests."
     required: false
     default: "true"
 runs:
@@ -86,4 +89,5 @@ runs:
         FLOW_IDS: ${{ inputs.flow-ids }}
         LABELS: ${{ inputs.labels }}
         WEB_BROWSER: ${{ inputs.web-browser }}
+        DEPENDENCIES: ${{ inputs.dependencies }}
         WAIT: ${{ inputs.wait }}

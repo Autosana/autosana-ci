@@ -159,6 +159,144 @@ setup() {
     assert_output --partial "Chrome extension platform detected"
 }
 
+@test "chrome-extension accepts uppercase ZIP extension" {
+    export PLATFORM="chrome-extension"
+    export BUNDLE_ID="my-extension"
+    export BUILD_PATH="$BATS_TEST_TMPDIR/extension.ZIP"
+    touch "$BUILD_PATH"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Chrome extension platform detected"
+}
+
+# --- Secret-safe diagnostics ---
+
+@test "missing platform validation never logs API key material" {
+    export AUTOSANA_KEY="autosana-super-secret-value"
+    unset PLATFORM
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "AUTOSANA_KEY: SET"
+    refute_output --partial "$AUTOSANA_KEY"
+    refute_output --partial "autosana-su"
+    refute_output --partial "chars"
+}
+
+@test "platform diagnostics never log API key material" {
+    export AUTOSANA_KEY="autosana-super-secret-value"
+    export PLATFORM="web"
+    export APP_ID=""
+    export URL="https://example.com"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "AUTOSANA_KEY: SET"
+    refute_output --partial "$AUTOSANA_KEY"
+    refute_output --partial "autosana-su"
+    refute_output --partial "chars"
+}
+
+# --- Dependencies validation ---
+
+@test "dependencies must be valid JSON before web registration" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export DEPENDENCIES='["extension-app"'
+    export MOCK_CURL_STATUS_UPLOAD_WEB=503
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "'dependencies' must be a valid JSON array"
+    refute_output --partial "Ensuring jq"
+    refute_output --partial "Registering web build"
+}
+
+@test "dependencies must be a JSON array before web registration" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export DEPENDENCIES='{"app_id":"extension-app"}'
+    export MOCK_CURL_STATUS_UPLOAD_WEB=503
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "'dependencies' must be a valid JSON array"
+    refute_output --partial "Ensuring jq"
+    refute_output --partial "Registering web build"
+}
+
+@test "whitespace-only dependencies is invalid when provided" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export DEPENDENCIES="   "
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "'dependencies' must be a valid JSON array"
+    refute_output --partial "Ensuring jq"
+    refute_output --partial "Registering web build"
+}
+
+@test "dependencies reject invalid entry structures before jq setup" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+
+    local invalid_dependencies=(
+        '[123]'
+        '[""]'
+        '["not-a-uuid"]'
+        '[{}]'
+        '[{"app_id":""}]'
+        '[{"app_id":"not-a-uuid"}]'
+        '[{"app_id":"11111111-1111-1111-1111-111111111111","app_build_id":""}]'
+        '[{"app_id":"11111111-1111-1111-1111-111111111111","app_build_id":"not-a-uuid"}]'
+    )
+
+    for dependencies in "${invalid_dependencies[@]}"; do
+        export DEPENDENCIES="$dependencies"
+        run bash "$ENTRYPOINT"
+        assert_failure
+        assert_output --partial "'dependencies' must be a valid JSON array"
+        refute_output --partial "Ensuring jq"
+        refute_output --partial "Registering web build"
+    done
+}
+
+@test "mobile rejects provided dependencies before upload" {
+    export DEPENDENCIES='[]'
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "'dependencies' is supported only for web flow, suite, or label runs"
+    refute_output --partial "Starting upload process"
+}
+
+@test "chrome-extension rejects provided dependencies before upload" {
+    export PLATFORM="chrome-extension"
+    export BUNDLE_ID="my-extension"
+    export BUILD_PATH="$BATS_TEST_TMPDIR/extension.zip"
+    export DEPENDENCIES='["extension-app"]'
+    touch "$BUILD_PATH"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "'dependencies' is supported only for web flow, suite, or label runs"
+    refute_output --partial "Starting upload process"
+}
+
+@test "web registration without a direct run rejects dependencies" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export DEPENDENCIES='[]'
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "'dependencies' requires suite-ids, flow-ids, or labels"
+    refute_output --partial "Ensuring jq"
+    refute_output --partial "Registering web build"
+}
+
 # --- Valid inputs pass validation ---
 
 @test "valid web inputs pass validation" {
