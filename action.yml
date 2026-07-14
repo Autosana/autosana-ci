@@ -42,15 +42,15 @@ inputs:
     description: "Key-value variables to pass to flow instructions (format: KEY1=VALUE1,KEY2=VALUE2)"
     required: false
 
-  # Flow execution inputs (optional - provide to run flows after upload)
+  # Flow execution inputs (optional for web/mobile; unsupported for chrome-extension uploads)
   suite-ids:
-    description: "Comma-separated suite UUIDs to run (e.g., 'uuid1,uuid2')"
+    description: "Comma-separated suite UUIDs to run (e.g., 'uuid1,uuid2'). Not supported for Chrome extension uploads; trigger extension tests from a separate web Action step."
     required: false
   flow-ids:
-    description: "Comma-separated flow UUIDs to run (e.g., 'uuid1,uuid2')"
+    description: "Comma-separated flow UUIDs to run (e.g., 'uuid1,uuid2'). Not supported for Chrome extension uploads; trigger extension tests from a separate web Action step."
     required: false
   labels:
-    description: "Comma-separated label names to run (e.g., 'smoke,regression'). Runs the union of all suites and flows carrying any of these labels. Combine with suite-ids/flow-ids to add to the selection."
+    description: "Comma-separated label names to run (e.g., 'smoke,regression'). Runs the union of all suites and flows carrying any of these labels. Combine with suite-ids/flow-ids to add to the selection. Not supported for Chrome extension uploads; trigger extension tests from a separate web Action step."
     required: false
   web-browser:
     description: "[Web] Playwright engine to run on: chrome (default, real Google Chrome with proprietary codecs / DRM), chromium (bundled engine, no codecs / DRM), firefox, or edge. Ignored for mobile platforms. Aliases accepted: msedge -> edge."

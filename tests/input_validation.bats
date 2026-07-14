@@ -169,6 +169,28 @@ setup() {
     assert_output --partial "Chrome extension platform detected"
 }
 
+@test "chrome-extension rejects direct test selectors before upload" {
+    export PLATFORM="chrome-extension"
+    export BUNDLE_ID="my-extension"
+    export BUILD_PATH="$BATS_TEST_TMPDIR/extension.zip"
+    touch "$BUILD_PATH"
+
+    local selectors=("FLOW_IDS=flow-1" "SUITE_IDS=suite-1" "LABELS=smoke")
+    for selector in "${selectors[@]}"; do
+        export FLOW_IDS=""
+        export SUITE_IDS=""
+        export LABELS=""
+        export "${selector?}"
+
+        run bash "$ENTRYPOINT"
+        assert_failure
+        assert_output --partial "Chrome extension uploads cannot trigger tests directly"
+        assert_output --partial "Upload and attach the extension, then run tests in a separate 'platform: web' Action step"
+        refute_output --partial "Ensuring jq"
+        refute_output --partial "Starting upload process"
+    done
+}
+
 # --- Secret-safe diagnostics ---
 
 @test "missing platform validation never logs API key material" {
@@ -263,6 +285,23 @@ setup() {
         refute_output --partial "Ensuring jq"
         refute_output --partial "Registering web build"
     done
+}
+
+@test "missing dependency validator runtime has a distinct preflight error" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export DEPENDENCIES='[]'
+    export PYTHON3_BIN="definitely-missing-python3"
+
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Dependency validation requires Python 3"
+    assert_output --partial "Set PYTHON3_BIN to an available Python 3 executable"
+    refute_output --partial "'dependencies' must be a valid JSON array"
+    refute_output --partial "Ensuring jq"
+    refute_output --partial "Registering web build"
 }
 
 @test "mobile rejects provided dependencies before upload" {

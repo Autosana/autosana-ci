@@ -119,6 +119,13 @@ elif [ "$PLATFORM" = "chrome-extension" ]; then
     exit 1
   fi
 
+  if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$LABELS" ]; then
+    echo "❌ ERROR: Chrome extension uploads cannot trigger tests directly."
+    echo "   Upload and attach the extension, then run tests in a separate 'platform: web' Action step."
+    echo "   The web app's default extensions or 'dependencies' input will control the test loadout."
+    exit 1
+  fi
+
   case "$(echo "$BUILD_PATH" | tr '[:upper:]' '[:lower:]')" in
     *.zip) ;;
     *)
@@ -153,8 +160,15 @@ if [ -n "${DEPENDENCIES:-}" ]; then
     exit 1
   fi
 
+  PYTHON3_BIN="${PYTHON3_BIN:-python3}"
+  if ! command -v "$PYTHON3_BIN" >/dev/null 2>&1; then
+    echo "❌ ERROR: Dependency validation requires Python 3, but '$PYTHON3_BIN' was not found."
+    echo "   Install Python 3 on the runner. Set PYTHON3_BIN to an available Python 3 executable if needed."
+    exit 1
+  fi
+
   if ! DEPENDENCIES_JSON=$(
-    DEPENDENCIES_INPUT="$DEPENDENCIES" python3 2>/dev/null <<'PY'
+    DEPENDENCIES_INPUT="$DEPENDENCIES" "$PYTHON3_BIN" 2>/dev/null <<'PY'
 import json
 import os
 import uuid

@@ -26,6 +26,7 @@ _common_setup() {
     export FLOW_IDS=""
     export LABELS=""
     export DEPENDENCIES=""
+    export PYTHON3_BIN="python3"
     # Default to the blocking (wait) behavior so existing tests assert on the
     # full poll + summary path. No-wait tests override this explicitly.
     export WAIT="true"
