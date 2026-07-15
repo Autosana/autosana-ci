@@ -15,6 +15,10 @@ inputs:
   build-path:
     description: "[Mobile] Full path to the build artifact. Android: .apk or .aab. iOS: .ipa (real-device build) or a zipped .app bundle (.zip, simulator build)."
     required: false
+  ios-keychain-support:
+    description: "[iOS] Instrument .ipa builds so hard-coded Team-ID keychain groups keep working after cloud device re-signing. Defaults to true for .ipa uploads; set to 'false' to disable."
+    required: false
+    default: "true"
 
   # Web-specific inputs (required when platform is web)
   app-id:
@@ -72,6 +76,7 @@ runs:
         # Mobile inputs
         BUNDLE_ID: ${{ inputs.bundle-id }}
         BUILD_PATH: ${{ inputs.build-path }}
+        IOS_KEYCHAIN_SUPPORT: ${{ inputs.ios-keychain-support }}
         # Web inputs
         APP_ID: ${{ inputs.app-id }}
         URL: ${{ inputs.url }}

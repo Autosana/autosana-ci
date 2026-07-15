@@ -37,6 +37,10 @@ Upload the artifact with its real extension — don't re-zip a `.ipa`. The
 extension determines the target: a `.ipa` runs on **real devices**, while a
 zipped `.app` bundle (`.zip`) runs on the **iOS simulator**.
 
+`.ipa` uploads enable iOS keychain compatibility by default so apps that
+hard-code Team-ID keychain groups keep working after cloud device re-signing.
+Disable with `ios-keychain-support: false` if you don't need it.
+
 ## Web usage
 
 ```yaml
@@ -61,6 +65,7 @@ Shared optional inputs:
 - `labels`: Comma-separated label names to run after upload (e.g. `smoke` or `smoke,regression`). Runs the union of every suite and flow carrying any of the given labels, so you can replace long `flow-ids` lists with a single label. Combine with `suite-ids`/`flow-ids` to add to the selection. If no suite or flow matches, the action fails.
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
 - `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Only applies when `suite-ids` or `flow-ids` are provided.
+- `ios-keychain-support`: iOS `.ipa` only. Instrument the IPA for Device Farm re-signing keychain remapping. Defaults to `true` for `.ipa` uploads; set to `false` to skip.
 
 ### Fire-and-forget runs
 

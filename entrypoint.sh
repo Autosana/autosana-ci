@@ -403,6 +403,28 @@ echo ""
 echo "🔄 Step 4: Confirming upload..."
 echo "   API Endpoint: $API_BASE_URL/api/ci/confirm-upload"
 
+# Default: enable iOS keychain compatibility for .ipa uploads (physical-device
+# re-signing). Opt out with ios-keychain-support: false. Ignored for non-.ipa.
+IOS_KEYCHAIN_SUPPORT_FLAG="false"
+FILENAME_LOWER=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
+case "$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')" in
+  ios*)
+    if [[ "$FILENAME_LOWER" == *.ipa ]]; then
+      case "$(echo "${IOS_KEYCHAIN_SUPPORT:-true}" | tr '[:upper:]' '[:lower:]')" in
+        false|0|no) IOS_KEYCHAIN_SUPPORT_FLAG="false" ;;
+        *) IOS_KEYCHAIN_SUPPORT_FLAG="true" ;;
+      esac
+    fi
+    ;;
+esac
+
+if [ "$IOS_KEYCHAIN_SUPPORT_FLAG" = "true" ]; then
+  echo "   iOS keychain support: enabled (instrumenting IPA for Device Farm re-signing)"
+  CONFIRM_MAX_TIME=900
+else
+  CONFIRM_MAX_TIME=60
+fi
+
 # Build the confirm payload with git metadata for PR integration
 CONFIRM_PAYLOAD=$(jq -n \
   --arg bundle_id "$BUNDLE_ID" \
@@ -414,6 +436,7 @@ CONFIRM_PAYLOAD=$(jq -n \
   --arg branch_name "$BRANCH_NAME" \
   --arg repo_full_name "$REPO_FULL_NAME" \
   --arg variables "$VARIABLES" \
+  --argjson ios_keychain_support "$IOS_KEYCHAIN_SUPPORT_FLAG" \
   '{
     bundle_id: $bundle_id,
     platform: $platform,
@@ -423,7 +446,8 @@ CONFIRM_PAYLOAD=$(jq -n \
     branch_name: $branch_name,
     repo_full_name: $repo_full_name
   } + (if $environment != "" then {environment: $environment} else {} end)
-    + (if $variables != "" then {variables: $variables} else {} end)')
+    + (if $variables != "" then {variables: $variables} else {} end)
+    + (if $ios_keychain_support then {ios_keychain_support: true} else {} end)')
 
 echo "   Request Payload:"
 echo "$CONFIRM_PAYLOAD" | _redact_payload | jq '.'
@@ -432,7 +456,7 @@ echo ""
 CONFIRM_START_TIME=$(date +%s)
 CONFIRM_RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/confirm-upload" \
   --connect-timeout 30 \
-  --max-time 60 \
+  --max-time "$CONFIRM_MAX_TIME" \
   -H "X-API-Key: $AUTOSANA_KEY" \
   -H "Content-Type: application/json" \
   -d "$CONFIRM_PAYLOAD" \
