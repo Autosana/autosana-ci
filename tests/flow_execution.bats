@@ -349,10 +349,14 @@ setup() {
     export APP_ID="my-app"
     export URL="https://example.com"
     export FLOW_IDS="uuid-1"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/curl-payloads"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
     run bash "$ENTRYPOINT"
     assert_success
-    refute_output --partial '"dependencies"'
+    run jq -e 'has("dependencies") | not' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+    run jq -e 'has("dependencies") | not' "$MOCK_CURL_CAPTURE_DIR/UPLOAD_WEB.json"
+    assert_success
 }
 
 @test "web run sends explicit empty dependencies array" {
@@ -361,10 +365,14 @@ setup() {
     export URL="https://example.com"
     export FLOW_IDS="uuid-1"
     export DEPENDENCIES='[]'
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/curl-payloads"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
     run bash "$ENTRYPOINT"
     assert_success
-    assert_output --partial '"dependencies": []'
+    run jq -e '.dependencies == []' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+    run jq -e '.dependencies == []' "$MOCK_CURL_CAPTURE_DIR/UPLOAD_WEB.json"
+    assert_success
 }
 
 @test "web run preserves dependency IDs and build pins as JSON" {
@@ -373,14 +381,33 @@ setup() {
     export URL="https://example.com"
     export LABELS="smoke"
     export DEPENDENCIES='["11111111-1111-1111-1111-111111111111",{"app_id":"22222222-2222-2222-2222-222222222222","app_build_id":"33333333-3333-3333-3333-333333333333"}]'
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/curl-payloads"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
     run bash "$ENTRYPOINT"
     assert_success
-    assert_output --partial '"dependencies": ['
-    assert_output --partial '"11111111-1111-1111-1111-111111111111"'
-    assert_output --partial '"app_id": "22222222-2222-2222-2222-222222222222"'
-    assert_output --partial '"app_build_id": "33333333-3333-3333-3333-333333333333"'
-    refute_output --partial '"dependencies": "['
+    run jq -e '.dependencies == ["11111111-1111-1111-1111-111111111111",{"app_id":"22222222-2222-2222-2222-222222222222","app_build_id":"33333333-3333-3333-3333-333333333333"}]' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+    run jq -e '.dependencies == ["11111111-1111-1111-1111-111111111111",{"app_id":"22222222-2222-2222-2222-222222222222","app_build_id":"33333333-3333-3333-3333-333333333333"}]' \
+        "$MOCK_CURL_CAPTURE_DIR/UPLOAD_WEB.json"
+    assert_success
+}
+
+@test "web upload forwards dependency override to backend automations" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export LABELS="smoke"
+    export DEPENDENCIES='[{"app_id":"22222222-2222-2222-2222-222222222222","app_build_id":"33333333-3333-3333-3333-333333333333"}]'
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/curl-payloads"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.dependencies == [{"app_id":"22222222-2222-2222-2222-222222222222","app_build_id":"33333333-3333-3333-3333-333333333333"}]' \
+        "$MOCK_CURL_CAPTURE_DIR/UPLOAD_WEB.json"
+    assert_success
 }
 
 # --- Browser engine selection (web only) ---

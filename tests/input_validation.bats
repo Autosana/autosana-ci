@@ -198,7 +198,7 @@ setup() {
     unset PLATFORM
     run bash "$ENTRYPOINT"
     assert_failure
-    assert_output --partial "AUTOSANA_KEY: SET"
+    refute_output --partial "AUTOSANA_KEY:"
     refute_output --partial "$AUTOSANA_KEY"
     refute_output --partial "autosana-su"
     refute_output --partial "chars"
@@ -211,7 +211,7 @@ setup() {
     export URL="https://example.com"
     run bash "$ENTRYPOINT"
     assert_failure
-    assert_output --partial "AUTOSANA_KEY: SET"
+    refute_output --partial "AUTOSANA_KEY:"
     refute_output --partial "$AUTOSANA_KEY"
     refute_output --partial "autosana-su"
     refute_output --partial "chars"
@@ -229,7 +229,6 @@ setup() {
     run bash "$ENTRYPOINT"
     assert_failure
     assert_output --partial "'dependencies' must be a valid JSON array"
-    refute_output --partial "Ensuring jq"
     refute_output --partial "Registering web build"
 }
 
@@ -243,7 +242,6 @@ setup() {
     run bash "$ENTRYPOINT"
     assert_failure
     assert_output --partial "'dependencies' must be a valid JSON array"
-    refute_output --partial "Ensuring jq"
     refute_output --partial "Registering web build"
 }
 
@@ -256,7 +254,6 @@ setup() {
     run bash "$ENTRYPOINT"
     assert_failure
     assert_output --partial "'dependencies' must be a valid JSON array"
-    refute_output --partial "Ensuring jq"
     refute_output --partial "Registering web build"
 }
 
@@ -282,26 +279,8 @@ setup() {
         run bash "$ENTRYPOINT"
         assert_failure
         assert_output --partial "'dependencies' must be a valid JSON array"
-        refute_output --partial "Ensuring jq"
         refute_output --partial "Registering web build"
     done
-}
-
-@test "missing dependency validator runtime has a distinct preflight error" {
-    export PLATFORM="web"
-    export APP_ID="my-app"
-    export URL="https://example.com"
-    export FLOW_IDS="uuid-1"
-    export DEPENDENCIES='[]'
-    export PYTHON3_BIN="definitely-missing-python3"
-
-    run bash "$ENTRYPOINT"
-    assert_failure
-    assert_output --partial "Dependency validation requires Python 3"
-    assert_output --partial "Set PYTHON3_BIN to an available Python 3 executable"
-    refute_output --partial "'dependencies' must be a valid JSON array"
-    refute_output --partial "Ensuring jq"
-    refute_output --partial "Registering web build"
 }
 
 @test "mobile rejects provided dependencies before upload" {
@@ -332,7 +311,6 @@ setup() {
     run bash "$ENTRYPOINT"
     assert_failure
     assert_output --partial "'dependencies' requires suite-ids, flow-ids, or labels"
-    refute_output --partial "Ensuring jq"
     refute_output --partial "Registering web build"
 }
 

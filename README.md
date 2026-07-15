@@ -60,7 +60,7 @@ Shared optional inputs:
 - `flow-ids`: Comma-separated flow UUIDs to run after a web or mobile upload
 - `labels`: Comma-separated label names to run after a web or mobile upload (e.g. `smoke` or `smoke,regression`). Runs the union of every suite and flow carrying any of the given labels, so you can replace long `flow-ids` lists with a single label. Combine with `suite-ids`/`flow-ids` to add to the selection. If no suite or flow matches, the action fails.
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
-- `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for this run. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires `suite-ids`, `flow-ids`, or `labels`.
+- `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires `suite-ids`, `flow-ids`, or `labels`.
 - `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when `suite-ids`, `flow-ids`, or `labels` trigger tests.
 
 ### Fire-and-forget runs
@@ -91,8 +91,9 @@ extensions or the web step's `dependencies` override.
 
 ### Web extension loadout overrides
 
-The `dependencies` input changes the Chrome extensions loaded for direct web
-runs triggered by `suite-ids`, `flow-ids`, or `labels`:
+The `dependencies` input changes the Chrome extensions loaded for web runs
+triggered by the upload's configured automations and by `suite-ids`,
+`flow-ids`, or `labels`:
 
 ```yaml
 # Omit dependencies to inherit the web app's configured defaults.

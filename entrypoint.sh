@@ -21,18 +21,9 @@ _redact_payload() {
   jq 'if has("variables") then .variables = "[REDACTED]" else . end'
 }
 
-_input_status() {
-  if [ -n "$1" ]; then
-    printf 'SET'
-  else
-    printf 'NOT SET'
-  fi
-}
-
 # Check common required inputs
 if [ -z "$AUTOSANA_KEY" ] || [ -z "$PLATFORM" ]; then
   echo "❌ ERROR: Missing required inputs."
-  echo "   - AUTOSANA_KEY: $(_input_status "$AUTOSANA_KEY")"
   echo "   - PLATFORM: ${PLATFORM:+SET}${PLATFORM:-NOT SET}"
   exit 1
 fi
@@ -41,7 +32,6 @@ fi
 if [ "$PLATFORM" = "web" ]; then
   echo "🌐 Web platform detected"
   echo "🔍 Checking web-specific environment variables..."
-  echo "   AUTOSANA_KEY: SET"
   echo "   APP_ID: $APP_ID"
   echo "   URL: $URL"
   echo "   APP_NAME: ${APP_NAME:-<not set>}"
@@ -50,7 +40,6 @@ if [ "$PLATFORM" = "web" ]; then
   if [ -z "$APP_ID" ] || [ -z "$URL" ]; then
     echo "❌ ERROR: Missing required inputs for web platform."
     echo "   Required variables:"
-    echo "   - AUTOSANA_KEY: SET"
     echo "   - APP_ID: ${APP_ID:+SET}${APP_ID:-NOT SET}"
     echo "   - URL: ${URL:+SET}${URL:-NOT SET}"
     exit 1
@@ -82,7 +71,6 @@ elif echo "$PLATFORM" | grep -qE '^(android|ios)'; then
   fi
   echo "📱 Mobile platform detected: $PLATFORM"
   echo "🔍 Checking mobile-specific environment variables..."
-  echo "   AUTOSANA_KEY: SET"
   echo "   BUNDLE_ID: $BUNDLE_ID"
   echo "   PLATFORM: $PLATFORM"
   echo "   BUILD_PATH: $BUILD_PATH"
@@ -92,7 +80,6 @@ elif echo "$PLATFORM" | grep -qE '^(android|ios)'; then
   if [ -z "$BUNDLE_ID" ] || [ -z "$BUILD_PATH" ]; then
     echo "❌ ERROR: Missing required inputs for mobile platform."
     echo "   Required variables:"
-    echo "   - AUTOSANA_KEY: SET"
     echo "   - BUNDLE_ID: ${BUNDLE_ID:+SET}${BUNDLE_ID:-NOT SET}"
     echo "   - PLATFORM: ${PLATFORM:+SET}${PLATFORM:-NOT SET}"
     echo "   - BUILD_PATH: ${BUILD_PATH:+SET}${BUILD_PATH:-NOT SET}"
@@ -101,7 +88,6 @@ elif echo "$PLATFORM" | grep -qE '^(android|ios)'; then
 elif [ "$PLATFORM" = "chrome-extension" ]; then
   echo "🧩 Chrome extension platform detected"
   echo "🔍 Checking extension-specific environment variables..."
-  echo "   AUTOSANA_KEY: SET"
   echo "   BUNDLE_ID: $BUNDLE_ID"
   echo "   BUILD_PATH: $BUILD_PATH"
   echo "   APP_NAME: ${APP_NAME:-<not set>}"
@@ -113,7 +99,6 @@ elif [ "$PLATFORM" = "chrome-extension" ]; then
   if [ -z "$BUNDLE_ID" ] || [ -z "$BUILD_PATH" ]; then
     echo "❌ ERROR: Missing required inputs for chrome-extension platform."
     echo "   Required variables:"
-    echo "   - AUTOSANA_KEY: SET"
     echo "   - BUNDLE_ID: ${BUNDLE_ID:+SET}${BUNDLE_ID:-NOT SET} (extension identifier, e.g. 'my-extension')"
     echo "   - BUILD_PATH: ${BUILD_PATH:+SET}${BUILD_PATH:-NOT SET} (zip of the unpacked MV3 extension directory)"
     exit 1
@@ -141,75 +126,6 @@ fi
 
 echo "✅ All required environment variables are set"
 echo ""
-
-# Validate the optional per-run web dependency override before any package
-# installation or Autosana request. Omitted means inherit app defaults; an
-# explicit [] means load none.
-DEPENDENCIES_PROVIDED=false
-DEPENDENCIES_JSON="null"
-if [ -n "${DEPENDENCIES:-}" ]; then
-  DEPENDENCIES_PROVIDED=true
-
-  if [ "$PLATFORM" != "web" ]; then
-    echo "❌ ERROR: 'dependencies' is supported only for web flow, suite, or label runs."
-    exit 1
-  fi
-
-  if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$LABELS" ]; then
-    echo "❌ ERROR: 'dependencies' requires suite-ids, flow-ids, or labels."
-    exit 1
-  fi
-
-  PYTHON3_BIN="${PYTHON3_BIN:-python3}"
-  if ! command -v "$PYTHON3_BIN" >/dev/null 2>&1; then
-    echo "❌ ERROR: Dependency validation requires Python 3, but '$PYTHON3_BIN' was not found."
-    echo "   Install Python 3 on the runner. Set PYTHON3_BIN to an available Python 3 executable if needed."
-    exit 1
-  fi
-
-  if ! DEPENDENCIES_JSON=$(
-    DEPENDENCIES_INPUT="$DEPENDENCIES" "$PYTHON3_BIN" 2>/dev/null <<'PY'
-import json
-import os
-import uuid
-
-
-def is_uuid(value):
-    if not isinstance(value, str) or not value:
-        return False
-    try:
-        return str(uuid.UUID(value)) == value.lower()
-    except (ValueError, AttributeError):
-        return False
-
-
-dependencies = json.loads(os.environ["DEPENDENCIES_INPUT"])
-if not isinstance(dependencies, list):
-    raise ValueError("dependencies must be an array")
-
-for dependency in dependencies:
-    if isinstance(dependency, str):
-        if not is_uuid(dependency):
-            raise ValueError("dependency app ID must be a UUID")
-        continue
-
-    if not isinstance(dependency, dict):
-        raise ValueError("dependency must be an app UUID or object")
-    if set(dependency) - {"app_id", "app_build_id"}:
-        raise ValueError("dependency object has unsupported fields")
-    if not is_uuid(dependency.get("app_id")):
-        raise ValueError("dependency app_id must be a UUID")
-    if "app_build_id" in dependency and not is_uuid(dependency["app_build_id"]):
-        raise ValueError("dependency app_build_id must be a UUID")
-
-print(json.dumps(dependencies, separators=(",", ":")))
-PY
-  ); then
-    echo "❌ ERROR: 'dependencies' must be a valid JSON array."
-    echo "   Each entry must be an app UUID or an object with a UUID app_id and optional UUID app_build_id."
-    exit 1
-  fi
-fi
 
 # Install jq
 echo "📦 Ensuring jq is available..."
@@ -251,6 +167,47 @@ else
 fi
 echo ""
 
+# Validate the optional per-run web dependency override before any Autosana
+# request. Omitted means inherit app defaults; an explicit [] means load none.
+DEPENDENCIES_PROVIDED=false
+DEPENDENCIES_JSON="null"
+if [ -n "${DEPENDENCIES:-}" ]; then
+  DEPENDENCIES_PROVIDED=true
+
+  if [ "$PLATFORM" != "web" ]; then
+    echo "❌ ERROR: 'dependencies' is supported only for web flow, suite, or label runs."
+    exit 1
+  fi
+
+  if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$LABELS" ]; then
+    echo "❌ ERROR: 'dependencies' requires suite-ids, flow-ids, or labels."
+    exit 1
+  fi
+
+  if ! jq -e '
+    def is_uuid:
+      type == "string"
+      and test("^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$");
+    type == "array"
+    and all(.[];
+      if type == "string" then
+        is_uuid
+      elif type == "object" then
+        ((keys_unsorted - ["app_id", "app_build_id"]) | length == 0)
+        and (.app_id | is_uuid)
+        and ((has("app_build_id") | not) or (.app_build_id | is_uuid))
+      else
+        false
+      end
+    )
+  ' >/dev/null 2>&1 <<< "$DEPENDENCIES"; then
+    echo "❌ ERROR: 'dependencies' must be a valid JSON array."
+    echo "   Each entry must be an app UUID or an object with a UUID app_id and optional UUID app_build_id."
+    exit 1
+  fi
+  DEPENDENCIES_JSON=$(jq -c . <<< "$DEPENDENCIES")
+fi
+
 # Capture GitHub environment variables for PR integration
 # For pull_request events, git rev-parse HEAD returns a merge commit SHA, not the PR head.
 # Extract the PR head SHA from the event payload instead.
@@ -281,9 +238,12 @@ if [ "$PLATFORM" = "web" ]; then
     --arg branch_name "$BRANCH_NAME" \
     --arg repo_full_name "$REPO_FULL_NAME" \
     --arg variables "$VARIABLES" \
+    --arg dependencies_provided "$DEPENDENCIES_PROVIDED" \
+    --argjson dependencies "$DEPENDENCIES_JSON" \
     '{app_id: $app_id, url: $url, name: $name, commit_sha: $commit_sha, branch_name: $branch_name, repo_full_name: $repo_full_name}
      + (if $environment != "" then {environment: $environment} else {} end)
-     + (if $variables != "" then {variables: $variables} else {} end)')
+     + (if $variables != "" then {variables: $variables} else {} end)
+     + (if $dependencies_provided == "true" then {dependencies: $dependencies} else {} end)')
 
   echo "🔄 Registering web build with Autosana..."
   echo "   API Endpoint: $API_BASE_URL/api/ci/upload-web-build"
