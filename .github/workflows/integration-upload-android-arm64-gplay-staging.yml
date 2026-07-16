@@ -20,8 +20,8 @@ jobs:
           set -euo pipefail
           APK_URL="https://jwvmttqclexlhnhfxuyq.supabase.co/storage/v1/object/public/test_app_builds/wikipedia.apk"
           echo "Downloading APK from ${APK_URL}"
-          curl --fail --location --silent --show-error "${APK_URL}" --output wikipedia.apk
-          test -s wikipedia.apk
+          curl --fail --location --silent --show-error "${APK_URL}" --output wikipedia-arm64-gplay.apk
+          test -s wikipedia-arm64-gplay.apk
 
       - name: Upload to Autosana (staging)
         uses: ./
@@ -31,4 +31,4 @@ jobs:
           name: Wikipedia
           bundle-id: org.wikipedia
           platform: android-arm64-gplay
-          build-path: wikipedia.apk
+          build-path: wikipedia-arm64-gplay.apk

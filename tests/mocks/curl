@@ -10,12 +10,14 @@
 
 METHOD="GET"
 URL=""
+DATA=""
 HAS_WRITE_OUT=false
 prev_arg=""
 
 for arg in "$@"; do
     case "$prev_arg" in
         -X) METHOD="$arg" ;;
+        -d) DATA="$arg" ;;
         -w) HAS_WRITE_OUT=true ;;
     esac
     prev_arg="$arg"
@@ -39,6 +41,11 @@ case "$URL" in
         fi
         ;;
 esac
+
+if [ -n "${MOCK_CURL_CAPTURE_DIR:-}" ] && [ -n "$DATA" ]; then
+    mkdir -p "$MOCK_CURL_CAPTURE_DIR"
+    printf '%s' "$DATA" > "$MOCK_CURL_CAPTURE_DIR/$ENDPOINT.json"
+fi
 
 # Check for per-endpoint overrides
 status_var="MOCK_CURL_STATUS_${ENDPOINT}"
