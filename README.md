@@ -38,7 +38,7 @@ extension determines the target: a `.ipa` runs on **real devices**, while a
 zipped `.app` bundle (`.zip`) runs on the **iOS simulator**.
 
 For apps that use Team-ID-prefixed keychain access groups, set
-`ios-keychain-access-group-remapping-enabled: true` once. The preference is
+`enable-ios-keychain-access-group-remapping: true` once. The preference is
 saved on the app and inherited by future `.ipa` uploads. Set it to `false` to
 disable remapping for the app.
 
@@ -67,7 +67,7 @@ Shared optional inputs:
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
 - `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires `suite-ids`, `flow-ids`, or `labels`.
 - `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when `suite-ids`, `flow-ids`, or `labels` trigger tests.
-- `ios-keychain-access-group-remapping-enabled`: iOS `.ipa` only. Persist whether future IPA uploads should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit it to inherit the app's saved preference.
+- `enable-ios-keychain-access-group-remapping`: iOS `.ipa` only. Persist whether future IPA uploads should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit it to inherit the app's saved preference.
 
 ### Fire-and-forget runs
 
