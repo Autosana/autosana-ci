@@ -1,19 +1,19 @@
 name: "Autosana CI Upload"
-description: "Upload your mobile app or register a web app URL with Autosana"
+description: "Upload your mobile app or Chrome extension, or register a web app URL with Autosana"
 inputs:
   api-key:
     description: "Your Autosana API key"
     required: true
   platform:
-    description: "Platform: android, ios, or web"
+    description: "Platform: android, ios, web, or chrome-extension"
     required: true
 
-  # Mobile-specific inputs (required when platform is android or ios)
+  # Mobile / extension inputs (required when platform is android, ios, or chrome-extension)
   bundle-id:
-    description: "[Mobile] Your app's bundle ID"
+    description: "[Mobile/Extension] Your app's bundle ID, or a stable identifier for your extension (e.g. 'my-extension')"
     required: false
   build-path:
-    description: "[Mobile] Full path to the build artifact. Android: .apk or .aab. iOS: .ipa (real-device build) or a zipped .app bundle (.zip, simulator build)."
+    description: "[Mobile/Extension] Full path to the build artifact. Android: .apk or .aab. iOS: .ipa or a zipped .app bundle. Chrome extension: .zip of the unpacked Manifest V3 extension directory."
     required: false
   ios-keychain-support:
     description: "[iOS] Instrument .ipa builds so hard-coded Team-ID keychain groups keep working after cloud device re-signing. Defaults to true for .ipa uploads; set to 'false' to disable."
@@ -33,7 +33,7 @@ inputs:
     description: "Display name for your app (optional, will update if app already exists)"
     required: false
   environment:
-    description: "Environment name to associate this app with (e.g., 'staging', 'production'). Apps with the same identifier (bundle ID for mobile, app-id for web) but different environments are treated as separate apps."
+    description: "Environment name to associate this app with (e.g., 'staging', 'production'). Apps with the same identifier (bundle ID for mobile, app-id for web) but different environments are treated as separate apps. Chrome extensions are organization-wide and ignore this input."
     required: false
 
   api-url:
@@ -46,21 +46,24 @@ inputs:
     description: "Key-value variables to pass to flow instructions (format: KEY1=VALUE1,KEY2=VALUE2)"
     required: false
 
-  # Flow execution inputs (optional - provide to run flows after upload)
+  # Flow execution inputs (optional for web/mobile; unsupported for chrome-extension uploads)
   suite-ids:
-    description: "Comma-separated suite UUIDs to run (e.g., 'uuid1,uuid2')"
+    description: "Comma-separated suite UUIDs to run (e.g., 'uuid1,uuid2'). Not supported for Chrome extension uploads; trigger extension tests from a separate web Action step."
     required: false
   flow-ids:
-    description: "Comma-separated flow UUIDs to run (e.g., 'uuid1,uuid2')"
+    description: "Comma-separated flow UUIDs to run (e.g., 'uuid1,uuid2'). Not supported for Chrome extension uploads; trigger extension tests from a separate web Action step."
     required: false
   labels:
-    description: "Comma-separated label names to run (e.g., 'smoke,regression'). Runs the union of all suites and flows carrying any of these labels. Combine with suite-ids/flow-ids to add to the selection."
+    description: "Comma-separated label names to run (e.g., 'smoke,regression'). Runs the union of all suites and flows carrying any of these labels. Combine with suite-ids/flow-ids to add to the selection. Not supported for Chrome extension uploads; trigger extension tests from a separate web Action step."
     required: false
   web-browser:
     description: "[Web] Playwright engine to run on: chrome (default, real Google Chrome with proprietary codecs / DRM), chromium (bundled engine, no codecs / DRM), firefox, or edge. Ignored for mobile platforms. Aliases accepted: msedge -> edge."
     required: false
+  dependencies:
+    description: "[Web runs only] JSON array overriding the app's default extension loadout for this run. Omit to inherit defaults; use [] for none; entries may be app UUID strings or {\"app_id\":\"...\",\"app_build_id\":\"...\"} pins. Not supported for mobile or Chrome extension uploads."
+    required: false
   wait:
-    description: "Wait for triggered flows to finish and gate the job on their result (default: true). Set to 'false' to trigger the flows, print their run links, and exit immediately without blocking CI. Only applies when suite-ids or flow-ids are provided."
+    description: "Wait for triggered flows to finish and gate the job on their result (default: true). Set to 'false' to trigger the flows, print their run links, and exit immediately without blocking CI. Applies when suite-ids, flow-ids, or labels trigger tests."
     required: false
     default: "true"
 runs:
@@ -91,4 +94,5 @@ runs:
         FLOW_IDS: ${{ inputs.flow-ids }}
         LABELS: ${{ inputs.labels }}
         WEB_BROWSER: ${{ inputs.web-browser }}
+        DEPENDENCIES: ${{ inputs.dependencies }}
         WAIT: ${{ inputs.wait }}
