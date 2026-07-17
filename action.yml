@@ -15,10 +15,9 @@ inputs:
   build-path:
     description: "[Mobile/Extension] Full path to the build artifact. Android: .apk or .aab. iOS: .ipa or a zipped .app bundle. Chrome extension: .zip of the unpacked Manifest V3 extension directory."
     required: false
-  ios-keychain-support:
-    description: "[iOS] Instrument .ipa builds so hard-coded Team-ID keychain groups keep working after cloud device re-signing. Defaults to true for .ipa uploads; set to 'false' to disable."
+  ios-keychain-access-group-remapping-enabled:
+    description: "[iOS] Persist whether .ipa builds should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit to use the app's saved preference."
     required: false
-    default: "true"
 
   # Web-specific inputs (required when platform is web)
   app-id:
@@ -79,7 +78,7 @@ runs:
         # Mobile inputs
         BUNDLE_ID: ${{ inputs.bundle-id }}
         BUILD_PATH: ${{ inputs.build-path }}
-        IOS_KEYCHAIN_SUPPORT: ${{ inputs.ios-keychain-support }}
+        IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING_ENABLED: ${{ inputs.ios-keychain-access-group-remapping-enabled }}
         # Web inputs
         APP_ID: ${{ inputs.app-id }}
         URL: ${{ inputs.url }}

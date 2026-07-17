@@ -476,24 +476,35 @@ echo ""
 echo "🔄 Step 4: Confirming upload..."
 echo "   API Endpoint: $API_BASE_URL/api/ci/confirm-upload"
 
-# Default: enable iOS keychain compatibility for .ipa uploads (physical-device
-# re-signing). Opt out with ios-keychain-support: false. Ignored for non-.ipa.
-IOS_KEYCHAIN_SUPPORT_FLAG="false"
+# For iOS IPAs, explicitly true/false persists the app preference. An omitted
+# input lets confirm-upload inherit the app's saved preference.
+KEYCHAIN_REMAPPING_VALUE=""
 FILENAME_LOWER=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
 case "$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')" in
   ios*)
     if [[ "$FILENAME_LOWER" == *.ipa ]]; then
-      case "$(echo "${IOS_KEYCHAIN_SUPPORT:-true}" | tr '[:upper:]' '[:lower:]')" in
-        false|0|no) IOS_KEYCHAIN_SUPPORT_FLAG="false" ;;
-        *) IOS_KEYCHAIN_SUPPORT_FLAG="true" ;;
+      case "$(echo "${IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING_ENABLED:-}" | tr '[:upper:]' '[:lower:]')" in
+        "") KEYCHAIN_REMAPPING_VALUE="" ;;
+        true|1|yes) KEYCHAIN_REMAPPING_VALUE="true" ;;
+        false|0|no) KEYCHAIN_REMAPPING_VALUE="false" ;;
+        *)
+          echo "❌ ERROR: ios-keychain-access-group-remapping-enabled must be true or false"
+          exit 1
+          ;;
       esac
     fi
     ;;
 esac
 
-if [ "$IOS_KEYCHAIN_SUPPORT_FLAG" = "true" ]; then
-  echo "   iOS keychain support: enabled (instrumenting IPA for Device Farm re-signing)"
+if [[ "$FILENAME_LOWER" == *.ipa ]] && echo "$PLATFORM" | tr '[:upper:]' '[:lower:]' | grep -q '^ios'; then
   CONFIRM_MAX_TIME=900
+  if [ "$KEYCHAIN_REMAPPING_VALUE" = "true" ]; then
+    echo "   iOS keychain access-group remapping: enabled"
+  elif [ "$KEYCHAIN_REMAPPING_VALUE" = "false" ]; then
+    echo "   iOS keychain access-group remapping: disabled"
+  else
+    echo "   iOS keychain access-group remapping: using saved app preference"
+  fi
 else
   CONFIRM_MAX_TIME=60
 fi
@@ -509,7 +520,7 @@ CONFIRM_PAYLOAD=$(jq -n \
   --arg branch_name "$BRANCH_NAME" \
   --arg repo_full_name "$REPO_FULL_NAME" \
   --arg variables "$VARIABLES" \
-  --argjson ios_keychain_support "$IOS_KEYCHAIN_SUPPORT_FLAG" \
+  --arg keychain_remapping "$KEYCHAIN_REMAPPING_VALUE" \
   '{
     bundle_id: $bundle_id,
     platform: $platform,
@@ -520,7 +531,9 @@ CONFIRM_PAYLOAD=$(jq -n \
     repo_full_name: $repo_full_name
   } + (if $platform != "chrome-extension" and $environment != "" then {environment: $environment} else {} end)
     + (if $variables != "" then {variables: $variables} else {} end)
-    + (if $ios_keychain_support then {ios_keychain_support: true} else {} end)')
+    + (if $keychain_remapping == "true" then {ios_keychain_access_group_remapping_enabled: true}
+       elif $keychain_remapping == "false" then {ios_keychain_access_group_remapping_enabled: false}
+       else {} end)')
 
 echo "   Request Payload:"
 echo "$CONFIRM_PAYLOAD" | _redact_payload | jq '.'
