@@ -22,7 +22,7 @@ _common_setup() {
     export ENVIRONMENT=""
     export AUTOSANA_API_URL="http://mock-api.local"
     export VARIABLES=""
-    export IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING_ENABLED=""
+    export ENABLE_IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING=""
     export SUITE_IDS=""
     export FLOW_IDS=""
     export LABELS=""

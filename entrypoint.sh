@@ -483,12 +483,12 @@ FILENAME_LOWER=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
 case "$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')" in
   ios*)
     if [[ "$FILENAME_LOWER" == *.ipa ]]; then
-      case "$(echo "${IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING_ENABLED:-}" | tr '[:upper:]' '[:lower:]')" in
+      case "$(echo "${ENABLE_IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING:-}" | tr '[:upper:]' '[:lower:]')" in
         "") KEYCHAIN_REMAPPING_VALUE="" ;;
         true|1|yes) KEYCHAIN_REMAPPING_VALUE="true" ;;
         false|0|no) KEYCHAIN_REMAPPING_VALUE="false" ;;
         *)
-          echo "❌ ERROR: ios-keychain-access-group-remapping-enabled must be true or false"
+          echo "❌ ERROR: enable-ios-keychain-access-group-remapping must be true or false"
           exit 1
           ;;
       esac
@@ -531,8 +531,8 @@ CONFIRM_PAYLOAD=$(jq -n \
     repo_full_name: $repo_full_name
   } + (if $platform != "chrome-extension" and $environment != "" then {environment: $environment} else {} end)
     + (if $variables != "" then {variables: $variables} else {} end)
-    + (if $keychain_remapping == "true" then {ios_keychain_access_group_remapping_enabled: true}
-       elif $keychain_remapping == "false" then {ios_keychain_access_group_remapping_enabled: false}
+    + (if $keychain_remapping == "true" then {enable_ios_keychain_access_group_remapping: true}
+       elif $keychain_remapping == "false" then {enable_ios_keychain_access_group_remapping: false}
        else {} end)')
 
 echo "   Request Payload:"
