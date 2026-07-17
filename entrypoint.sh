@@ -476,6 +476,39 @@ echo ""
 echo "🔄 Step 4: Confirming upload..."
 echo "   API Endpoint: $API_BASE_URL/api/ci/confirm-upload"
 
+# For iOS IPAs, explicitly true/false persists the app preference. An omitted
+# input lets confirm-upload inherit the app's saved preference.
+KEYCHAIN_REMAPPING_VALUE=""
+FILENAME_LOWER=$(echo "$FILENAME" | tr '[:upper:]' '[:lower:]')
+case "$(echo "$PLATFORM" | tr '[:upper:]' '[:lower:]')" in
+  ios*)
+    if [[ "$FILENAME_LOWER" == *.ipa ]]; then
+      case "$(echo "${IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING_ENABLED:-}" | tr '[:upper:]' '[:lower:]')" in
+        "") KEYCHAIN_REMAPPING_VALUE="" ;;
+        true|1|yes) KEYCHAIN_REMAPPING_VALUE="true" ;;
+        false|0|no) KEYCHAIN_REMAPPING_VALUE="false" ;;
+        *)
+          echo "❌ ERROR: ios-keychain-access-group-remapping-enabled must be true or false"
+          exit 1
+          ;;
+      esac
+    fi
+    ;;
+esac
+
+if [[ "$FILENAME_LOWER" == *.ipa ]] && echo "$PLATFORM" | tr '[:upper:]' '[:lower:]' | grep -q '^ios'; then
+  CONFIRM_MAX_TIME=900
+  if [ "$KEYCHAIN_REMAPPING_VALUE" = "true" ]; then
+    echo "   iOS keychain access-group remapping: enabled"
+  elif [ "$KEYCHAIN_REMAPPING_VALUE" = "false" ]; then
+    echo "   iOS keychain access-group remapping: disabled"
+  else
+    echo "   iOS keychain access-group remapping: using saved app preference"
+  fi
+else
+  CONFIRM_MAX_TIME=60
+fi
+
 # Build the confirm payload with git metadata for PR integration
 CONFIRM_PAYLOAD=$(jq -n \
   --arg bundle_id "$BUNDLE_ID" \
@@ -487,6 +520,7 @@ CONFIRM_PAYLOAD=$(jq -n \
   --arg branch_name "$BRANCH_NAME" \
   --arg repo_full_name "$REPO_FULL_NAME" \
   --arg variables "$VARIABLES" \
+  --arg keychain_remapping "$KEYCHAIN_REMAPPING_VALUE" \
   '{
     bundle_id: $bundle_id,
     platform: $platform,
@@ -496,7 +530,10 @@ CONFIRM_PAYLOAD=$(jq -n \
     branch_name: $branch_name,
     repo_full_name: $repo_full_name
   } + (if $platform != "chrome-extension" and $environment != "" then {environment: $environment} else {} end)
-    + (if $variables != "" then {variables: $variables} else {} end)')
+    + (if $variables != "" then {variables: $variables} else {} end)
+    + (if $keychain_remapping == "true" then {ios_keychain_access_group_remapping_enabled: true}
+       elif $keychain_remapping == "false" then {ios_keychain_access_group_remapping_enabled: false}
+       else {} end)')
 
 echo "   Request Payload:"
 echo "$CONFIRM_PAYLOAD" | _redact_payload | jq '.'
@@ -505,7 +542,7 @@ echo ""
 CONFIRM_START_TIME=$(date +%s)
 CONFIRM_RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/ci/confirm-upload" \
   --connect-timeout 30 \
-  --max-time 60 \
+  --max-time "$CONFIRM_MAX_TIME" \
   -H "X-API-Key: $AUTOSANA_KEY" \
   -H "Content-Type: application/json" \
   -d "$CONFIRM_PAYLOAD" \
