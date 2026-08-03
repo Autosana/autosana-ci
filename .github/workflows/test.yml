@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, staging]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -26,3 +29,135 @@ jobs:
 
       - name: Run Bats tests
         run: bats tests/*.bats
+
+  coverage:
+    if: github.event_name == 'pull_request'
+    # Kcov's official v42 binary targets Ubuntu 22.04's binutils ABI.
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so diff-cover can compare the PR with its base branch.
+          fetch-depth: 0
+
+      - name: Install coverage dependencies
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq binutils-dev libdw1 libcurl4 zlib1g
+
+      - name: Install Bats
+        continue-on-error: true
+        env:
+          BATS_VERSION: v1.13.0
+        run: |
+          git clone --depth 1 --branch "$BATS_VERSION" https://github.com/bats-core/bats-core.git "$RUNNER_TEMP/bats-core"
+          sudo "$RUNNER_TEMP/bats-core/install.sh" /usr/local
+
+      - name: Install kcov
+        continue-on-error: true
+        env:
+          KCOV_VERSION: v42
+        run: |
+          mkdir -p "$RUNNER_TEMP/kcov"
+          curl -fsSL "https://github.com/SimonKagstrom/kcov/releases/download/${KCOV_VERSION}/kcov-amd64.tar.gz" \
+            -o "$RUNNER_TEMP/kcov.tar.gz"
+          tar -xzf "$RUNNER_TEMP/kcov.tar.gz" -C "$RUNNER_TEMP/kcov"
+
+      - name: Install Bats helpers
+        continue-on-error: true
+        run: ./tests/setup.sh
+
+      - name: Make mocks executable
+        continue-on-error: true
+        run: chmod +x tests/mocks/*
+
+      - name: Collect coverage (report only)
+        continue-on-error: true
+        run: |
+          if ! "$RUNNER_TEMP/kcov/usr/local/bin/kcov" --include-pattern=entrypoint.sh coverage /usr/local/bin/bats tests/*.bats > coverage-test-output.txt 2>&1; then
+            cat coverage-test-output.txt
+            exit 1
+          fi
+          tail -n 10 coverage-test-output.txt
+
+      - name: Set up Python (for diff-cover)
+        uses: actions/setup-python@v5
+        continue-on-error: true
+        with:
+          python-version: "3.13"
+
+      - name: Install diff-cover
+        continue-on-error: true
+        run: pip install "diff-cover>=9,<10"
+
+      - name: Compute patch + total coverage
+        if: always()
+        continue-on-error: true
+        run: |
+          COVERAGE_JSON=$(find coverage -name coverage.json -print -quit 2>/dev/null || true)
+          COVERAGE_XML=$(find coverage -name cobertura.xml -print -quit 2>/dev/null || true)
+          TOTAL="?"
+          if [ -n "$COVERAGE_JSON" ]; then
+            TOTAL=$(jq -r '.percent_covered // "?"' "$COVERAGE_JSON" 2>/dev/null || echo "?")
+          fi
+
+          PATCH="n/a"
+          if [ -n "$COVERAGE_XML" ]; then
+            BASE="${{ github.base_ref }}"
+            git fetch --no-tags --quiet origin "+refs/heads/${BASE}:refs/remotes/origin/${BASE}" || true
+            diff-cover "$COVERAGE_XML" --compare-branch="origin/${BASE}" > patch-coverage.txt 2>&1 || true
+            P=$(grep -oE 'Coverage: [0-9.]+%' patch-coverage.txt | head -1 | grep -oE '[0-9.]+' || true)
+            [ -n "$P" ] && PATCH="$P"
+          fi
+
+          {
+            echo "<!-- coverage-comment -->"
+            echo "## 📊 Coverage report"
+            echo ""
+            echo "| Metric | Coverage |"
+            echo "| --- | --- |"
+            if [ "$PATCH" = "n/a" ]; then
+              echo "| **Patch** (this PR's changed lines) | n/a — no measured lines changed |"
+            else
+              echo "| **Patch** (this PR's changed lines) | ${PATCH}% |"
+            fi
+            echo "| **Total** (whole project) | ${TOTAL}% |"
+            echo ""
+            if [ -s patch-coverage.txt ]; then
+              echo "<details><summary>Patch coverage detail</summary>"
+              echo ""
+              echo '```'
+              cat patch-coverage.txt
+              echo '```'
+              echo ""
+              echo "</details>"
+            fi
+            echo ""
+            echo "_Report only — coverage is not a merge gate._"
+          } > coverage-comment.md
+
+      - name: Post / update coverage comment on the PR
+        if: always()
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('coverage-comment.md', 'utf8');
+            const marker = '<!-- coverage-comment -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) => comment.body && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ ...context.repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+            }
