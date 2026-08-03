@@ -648,8 +648,8 @@ case "$WAIT_LOWER" in
     ;;
 esac
 
+PHYSICAL_DEVICE_LOWER=$(echo "${PHYSICAL_DEVICE:-false}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
 if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
-  PHYSICAL_DEVICE_LOWER=$(echo "${PHYSICAL_DEVICE:-false}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
   case "$PHYSICAL_DEVICE_LOWER" in
     true|false)
       ;;
@@ -659,6 +659,8 @@ if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
       exit 1
       ;;
   esac
+elif [ -n "$DEVICE_MODEL" ] || [ -n "$OS_VERSION" ] || [ "$PHYSICAL_DEVICE_LOWER" != "false" ]; then
+  echo "⚠️  device selection inputs are mobile-only; ignoring them for platform '$PLATFORM'."
 fi
 
 # Convert comma-separated IDs to JSON arrays (strip whitespace)

@@ -182,6 +182,22 @@ setup() {
     assert_output --partial '"smoke"'
 }
 
+@test "device inputs on web warn before being ignored" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export DEVICE_MODEL="Pixel 10 Pro"
+    export OS_VERSION="17"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial "device selection inputs are mobile-only"
+    assert_output --partial "ignoring them for platform 'web'"
+}
+
 # --- No-wait (fire-and-forget) mode ---
 
 @test "wait=false triggers flows then exits 0 without polling for results" {
