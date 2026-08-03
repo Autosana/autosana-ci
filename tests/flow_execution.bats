@@ -75,37 +75,40 @@ setup() {
     export PHYSICAL_DEVICE="false"
     export DEVICE_MODEL="Pixel 10 Pro"
     export OS_VERSION="17"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/android-device-request"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
 
     run bash "$ENTRYPOINT"
 
     assert_success
-    assert_output --partial '"device": {'
-    assert_output --partial '"physical": false'
-    assert_output --partial '"model": "Pixel 10 Pro"'
-    assert_output --partial '"os_version": "17"'
+    run jq -e '.device == {physical: false, model: "Pixel 10 Pro", os_version: "17"}' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
 }
 
 @test "physical-device true can select real hardware without a model" {
     export FLOW_IDS="uuid-1"
     export PHYSICAL_DEVICE="true"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/physical-device-request"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
 
     run bash "$ENTRYPOINT"
 
     assert_success
-    assert_output --partial '"device": {'
-    assert_output --partial '"physical": true'
+    run jq -e '.device == {physical: true}' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
 }
 
 @test "default mobile run omits device so the backend chooses the default" {
     export FLOW_IDS="uuid-1"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/default-device-request"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
 
     run bash "$ENTRYPOINT"
 
     assert_success
-    refute_output --regexp '"device"[[:space:]]*:'
+    run jq -e 'has("device") | not' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
 }
 
 @test "invalid physical-device value fails before triggering flows" {
