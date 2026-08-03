@@ -79,7 +79,11 @@ jobs:
       - name: Collect coverage (report only)
         continue-on-error: true
         run: |
-          if ! "$RUNNER_TEMP/kcov/usr/local/bin/kcov" --include-pattern=entrypoint.sh coverage /usr/local/bin/bats tests/*.bats > coverage-test-output.txt 2>&1; then
+          if ! "$RUNNER_TEMP/kcov/usr/local/bin/kcov" \
+            --include-pattern=entrypoint.sh \
+            --exclude-line=kcov-ignore \
+            --exclude-region=kcov-ignore-start:kcov-ignore-end \
+            coverage /usr/local/bin/bats tests/*.bats > coverage-test-output.txt 2>&1; then
             cat coverage-test-output.txt
             exit 1
           fi

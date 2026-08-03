@@ -72,7 +72,18 @@ if [ -z "$BODY" ]; then
             BODY='{"batch_id":"batch-001","flow_run_count":2}'
             ;;
         POLL_STATUS)
-            if [ -n "$MOCK_POLL_RESPONSE_FILE" ] && [ -f "$MOCK_POLL_RESPONSE_FILE" ]; then
+            if [ -n "${MOCK_POLL_RESPONSE_SEQUENCE_DIR:-}" ]; then
+                count=0
+                if [ -f "$MOCK_POLL_RESPONSE_COUNTER_FILE" ]; then
+                    count=$(cat "$MOCK_POLL_RESPONSE_COUNTER_FILE")
+                fi
+                count=$((count + 1))
+                printf '%s' "$count" > "$MOCK_POLL_RESPONSE_COUNTER_FILE"
+                sequence_file="$MOCK_POLL_RESPONSE_SEQUENCE_DIR/$count.json"
+                if [ -f "$sequence_file" ]; then
+                    BODY=$(cat "$sequence_file")
+                fi
+            elif [ -n "$MOCK_POLL_RESPONSE_FILE" ] && [ -f "$MOCK_POLL_RESPONSE_FILE" ]; then
                 BODY=$(cat "$MOCK_POLL_RESPONSE_FILE")
             else
                 BODY='{"is_complete":true,"run_groups":[],"summary":{"total_groups":1,"passed_groups":1,"total_flows":2,"passed_flows":2,"failed_flows":0,"error_flows":0,"terminated_flows":0,"skipped_flows":0}}'
