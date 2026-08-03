@@ -1,14 +1,10 @@
-name: "Integration: Upload Android (Staging)"
+name: "Integration: Android Device Selection (Staging)"
 
 on:
-  push:
-    branches: [main, staging]
-  pull_request:
-    branches: [main, staging]
   workflow_dispatch:
 
 jobs:
-  upload:
+  run:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
@@ -19,11 +15,11 @@ jobs:
         run: |
           set -euo pipefail
           APK_URL="https://jwvmttqclexlhnhfxuyq.supabase.co/storage/v1/object/public/test_app_builds/wikipedia.apk"
-          echo "Downloading APK from ${APK_URL}"
           curl --fail --location --silent --show-error "${APK_URL}" --output wikipedia.apk
           test -s wikipedia.apk
 
-      - name: Upload to Autosana (staging)
+      # Run this manually after the matching backend changes are deployed to staging.
+      - name: Run Wikipedia on Pixel 10 Pro / Android 17
         uses: ./
         with:
           api-key: ${{ secrets.AUTOSANA_STAGING_KEY }}
@@ -32,3 +28,7 @@ jobs:
           bundle-id: org.wikipedia
           platform: android
           build-path: wikipedia.apk
+          flow-ids: 069c9578-7156-416c-acd3-9f21255cc5ce
+          physical-device: false
+          device-model: Pixel 10 Pro
+          os-version: "17"

@@ -666,6 +666,21 @@ case "$WAIT_LOWER" in
     ;;
 esac
 
+PHYSICAL_DEVICE_LOWER=$(echo "${PHYSICAL_DEVICE:-false}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
+  case "$PHYSICAL_DEVICE_LOWER" in
+    true|false)
+      ;;
+    *)
+      echo "❌ ERROR: Unsupported 'physical-device' value: '$PHYSICAL_DEVICE'"
+      echo "   Allowed: true, false (default)"
+      exit 1
+      ;;
+  esac
+elif [ -n "$DEVICE_MODEL" ] || [ -n "$OS_VERSION" ] || [ "$PHYSICAL_DEVICE_LOWER" != "false" ]; then
+  echo "⚠️  device selection inputs are mobile-only; ignoring them for platform '$PLATFORM'."
+fi
+
 # Convert comma-separated IDs to JSON arrays (strip whitespace)
 if [ -n "$FLOW_IDS" ]; then
   FLOW_IDS_JSON=$(echo "$FLOW_IDS" | tr -d ' ' | tr ',' '\n' | sed '/^$/d' | jq -R . | jq -s .)
@@ -745,12 +760,20 @@ else
     --arg platform "$PLATFORM" \
     --arg environment "$ENVIRONMENT" \
     --arg variables "$VARIABLES" \
+    --arg physical_device "$PHYSICAL_DEVICE_LOWER" \
+    --arg device_model "$DEVICE_MODEL" \
+    --arg os_version "$OS_VERSION" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
     --argjson labels "$LABELS_JSON" \
     '{bundle_id: $bundle_id, platform: $platform, flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels}
      + (if $environment != "" then {environment: $environment} else {} end)
-     + (if $variables != "" then {variables: $variables} else {} end)')
+     + (if $variables != "" then {variables: $variables} else {} end)
+     + (if $physical_device == "true" or $device_model != "" or $os_version != ""
+        then {device: ({physical: ($physical_device == "true")}
+          + (if $device_model != "" then {model: $device_model} else {} end)
+          + (if $os_version != "" then {os_version: $os_version} else {} end))}
+        else {} end)')
   # kcov-ignore-end
 fi
 

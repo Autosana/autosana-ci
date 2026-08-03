@@ -70,6 +70,58 @@ setup() {
     assert_output --partial "Running Flows"
 }
 
+@test "android device inputs produce the canonical nested device payload" {
+    export FLOW_IDS="uuid-1"
+    export PHYSICAL_DEVICE="false"
+    export DEVICE_MODEL="Pixel 10 Pro"
+    export OS_VERSION="17"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/android-device-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.device == {physical: false, model: "Pixel 10 Pro", os_version: "17"}' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "physical-device true can select real hardware without a model" {
+    export FLOW_IDS="uuid-1"
+    export PHYSICAL_DEVICE="true"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/physical-device-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.device == {physical: true}' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "default mobile run omits device so the backend chooses the default" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/default-device-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e 'has("device") | not' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "invalid physical-device value fails before triggering flows" {
+    export FLOW_IDS="uuid-1"
+    export PHYSICAL_DEVICE="yes"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "Unsupported 'physical-device' value"
+    refute_output --partial "Triggering flows"
+}
+
 # --- Labels ---
 
 @test "LABELS alone triggers flow execution" {
@@ -128,6 +180,22 @@ setup() {
     assert_success
     assert_output --partial '"labels"'
     assert_output --partial '"smoke"'
+}
+
+@test "device inputs on web warn before being ignored" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export DEVICE_MODEL="Pixel 10 Pro"
+    export OS_VERSION="17"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial "device selection inputs are mobile-only"
+    assert_output --partial "ignoring them for platform 'web'"
 }
 
 # --- No-wait (fire-and-forget) mode ---
