@@ -18,6 +18,16 @@ inputs:
   enable-ios-keychain-access-group-remapping:
     description: "[iOS] Persist whether .ipa builds should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit to use the app's saved preference."
     required: false
+  physical-device:
+    description: "[Mobile runs] Run on real hardware. Defaults to false."
+    required: false
+    default: "false"
+  device-model:
+    description: "[Mobile runs] Device model from the Autosana device catalog (for example, 'Pixel 10 Pro')."
+    required: false
+  os-version:
+    description: "[Mobile runs] OS version supported by the selected device model (for example, '17')."
+    required: false
 
   # Web-specific inputs (required when platform is web)
   app-id:
@@ -79,6 +89,9 @@ runs:
         BUNDLE_ID: ${{ inputs.bundle-id }}
         BUILD_PATH: ${{ inputs.build-path }}
         ENABLE_IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING: ${{ inputs.enable-ios-keychain-access-group-remapping }}
+        PHYSICAL_DEVICE: ${{ inputs.physical-device }}
+        DEVICE_MODEL: ${{ inputs.device-model }}
+        OS_VERSION: ${{ inputs.os-version }}
         # Web inputs
         APP_ID: ${{ inputs.app-id }}
         URL: ${{ inputs.url }}

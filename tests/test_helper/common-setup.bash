@@ -27,6 +27,9 @@ _common_setup() {
     export FLOW_IDS=""
     export LABELS=""
     export DEPENDENCIES=""
+    export PHYSICAL_DEVICE="false"
+    export DEVICE_MODEL=""
+    export OS_VERSION=""
     # Default to the blocking (wait) behavior so existing tests assert on the
     # full poll + summary path. No-wait tests override this explicitly.
     export WAIT="true"
@@ -59,5 +62,7 @@ _common_setup() {
     unset MOCK_CURL_BODY_RUN_FLOWS
     unset MOCK_CURL_BODY_POLL_STATUS
     unset MOCK_POLL_RESPONSE_FILE
+    unset MOCK_POLL_RESPONSE_SEQUENCE_DIR
+    unset MOCK_POLL_RESPONSE_COUNTER_FILE
     unset MOCK_GIT_FAIL
 }

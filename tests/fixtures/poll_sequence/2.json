@@ -1,0 +1,1 @@
+{"is_complete":false,"run_groups":[{"name":"Initial Suite","runs":[{"id":"run-1","name":"First Flow","url":"https://app.autosana.ai/runs/run-1","status":"running"}]}],"summary":{"total_groups":2,"passed_groups":0,"total_flows":2,"passed_flows":0,"failed_flows":0,"error_flows":0,"terminated_flows":0,"skipped_flows":0}}
