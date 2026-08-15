@@ -667,6 +667,14 @@ case "$WAIT_LOWER" in
 esac
 
 PHYSICAL_DEVICE_LOWER=$(echo "${PHYSICAL_DEVICE:-false}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+DEVICE_MODEL_PAYLOAD="$DEVICE_MODEL"
+OS_VERSION_PAYLOAD="$OS_VERSION"
+if [ "$(echo "$DEVICE_MODEL" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = "latest" ]; then
+  DEVICE_MODEL_PAYLOAD=""
+fi
+if [ "$(echo "$OS_VERSION" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = "latest" ]; then
+  OS_VERSION_PAYLOAD=""
+fi
 if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
   case "$PHYSICAL_DEVICE_LOWER" in
     true|false)
@@ -761,8 +769,8 @@ else
     --arg environment "$ENVIRONMENT" \
     --arg variables "$VARIABLES" \
     --arg physical_device "$PHYSICAL_DEVICE_LOWER" \
-    --arg device_model "$DEVICE_MODEL" \
-    --arg os_version "$OS_VERSION" \
+    --arg device_model "$DEVICE_MODEL_PAYLOAD" \
+    --arg os_version "$OS_VERSION_PAYLOAD" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
     --argjson labels "$LABELS_JSON" \

@@ -111,6 +111,35 @@ setup() {
     assert_success
 }
 
+@test "explicit latest model and OS map to the default device payload" {
+    export FLOW_IDS="uuid-1"
+    export DEVICE_MODEL="latest"
+    export OS_VERSION="latest"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/latest-device-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e 'has("device") | not' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "latest OS keeps a pinned device model" {
+    export FLOW_IDS="uuid-1"
+    export DEVICE_MODEL="Pixel 10 Pro"
+    export OS_VERSION="latest"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/latest-os-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.device == {physical: false, model: "Pixel 10 Pro"}' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
 @test "invalid physical-device value fails before triggering flows" {
     export FLOW_IDS="uuid-1"
     export PHYSICAL_DEVICE="yes"
