@@ -69,11 +69,27 @@ Shared optional inputs:
 - `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when `suite-ids`, `flow-ids`, or `labels` trigger tests.
 - `enable-ios-keychain-access-group-remapping`: iOS `.ipa` only. Persist whether future IPA uploads should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit it to inherit the app's saved preference.
 - `physical-device`: Mobile runs only. Set to `true` to run on real hardware. Defaults to `false`.
-- `device-model`: Mobile runs only. Device model from the Autosana device catalog, such as `Pixel 10 Pro`.
-- `os-version`: Mobile runs only. OS version supported by the selected model, such as `17`.
+- `device-model`: Mobile runs only. Device model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`.
+- `os-version`: Mobile runs only. OS version supported by the selected model, such as `17`, or `latest`.
 
-Device inputs apply when `suite-ids`, `flow-ids`, or `labels` trigger a run. Omit
-all three to let Autosana choose the latest default virtual device:
+Device inputs apply when `suite-ids`, `flow-ids`, or `labels` trigger a run. Use
+`latest` to make rolling model and OS selection explicit in checked-in workflows:
+
+```yaml
+- uses: autosana/autosana-ci@main
+  with:
+    api-key: ${{ secrets.AUTOSANA_KEY }}
+    platform: android
+    bundle-id: com.example.app
+    build-path: build/app-release.apk
+    suite-ids: "suite-uuid"
+    physical-device: false
+    device-model: latest
+    os-version: latest
+```
+
+Set either input independently and use `latest` (or omit the other input) to
+keep that dimension rolling. To pin both the model and OS:
 
 ```yaml
 - uses: autosana/autosana-ci@main
@@ -87,6 +103,9 @@ all three to let Autosana choose the latest default virtual device:
     device-model: Pixel 10 Pro
     os-version: "17"
 ```
+
+Omitting `device-model` and `os-version` retains the same rolling-latest
+behavior for backward compatibility.
 
 ### Fire-and-forget runs
 
