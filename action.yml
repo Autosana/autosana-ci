@@ -23,10 +23,10 @@ inputs:
     required: false
     default: "false"
   device-model:
-    description: "[Mobile runs] Device model from the Autosana device catalog (for example, 'Pixel 10 Pro')."
+    description: "[Mobile runs] Device model from the Autosana device catalog (for example, 'Pixel 10 Pro'), or 'latest'."
     required: false
   os-version:
-    description: "[Mobile runs] OS version supported by the selected device model (for example, '17')."
+    description: "[Mobile runs] OS version supported by the selected device model (for example, '17'), or 'latest'."
     required: false
 
   # Web-specific inputs (required when platform is web)
