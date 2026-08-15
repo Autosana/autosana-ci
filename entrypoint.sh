@@ -669,11 +669,15 @@ esac
 PHYSICAL_DEVICE_LOWER=$(echo "${PHYSICAL_DEVICE:-false}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
 DEVICE_MODEL_PAYLOAD="$DEVICE_MODEL"
 OS_VERSION_PAYLOAD="$OS_VERSION"
+DEVICE_MODEL_IS_LATEST="false"
+OS_VERSION_IS_LATEST="false"
 if [ "$(echo "$DEVICE_MODEL" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = "latest" ]; then
   DEVICE_MODEL_PAYLOAD=""
+  DEVICE_MODEL_IS_LATEST="true"
 fi
 if [ "$(echo "$OS_VERSION" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = "latest" ]; then
   OS_VERSION_PAYLOAD=""
+  OS_VERSION_IS_LATEST="true"
 fi
 if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
   case "$PHYSICAL_DEVICE_LOWER" in
@@ -685,6 +689,12 @@ if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
       exit 1
       ;;
   esac
+  if [ "$DEVICE_MODEL_IS_LATEST" = "true" ]; then
+    echo "ℹ️  device-model=latest uses rolling model selection."
+  fi
+  if [ "$OS_VERSION_IS_LATEST" = "true" ]; then
+    echo "ℹ️  os-version=latest uses rolling OS selection."
+  fi
 elif [ -n "$DEVICE_MODEL" ] || [ -n "$OS_VERSION" ] || [ "$PHYSICAL_DEVICE_LOWER" != "false" ]; then
   echo "⚠️  device selection inputs are mobile-only; ignoring them for platform '$PLATFORM'."
 fi

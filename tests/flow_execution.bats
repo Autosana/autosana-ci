@@ -121,6 +121,8 @@ setup() {
     run bash "$ENTRYPOINT"
 
     assert_success
+    assert_output --partial "device-model=latest uses rolling model selection"
+    assert_output --partial "os-version=latest uses rolling OS selection"
     run jq -e 'has("device") | not' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
     assert_success
 }
@@ -137,6 +139,36 @@ setup() {
     assert_success
     run jq -e '.device == {physical: false, model: "Pixel 10 Pro"}' \
         "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "latest model keeps a pinned OS version" {
+    export FLOW_IDS="uuid-1"
+    export DEVICE_MODEL="latest"
+    export OS_VERSION="17"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/latest-model-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.device == {physical: false, os_version: "17"}' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "physical latest emits only the physical target" {
+    export FLOW_IDS="uuid-1"
+    export PHYSICAL_DEVICE="true"
+    export DEVICE_MODEL="latest"
+    export OS_VERSION="latest"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/physical-latest-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.device == {physical: true}' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
     assert_success
 }
 

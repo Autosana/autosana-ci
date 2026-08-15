@@ -88,8 +88,8 @@ Device inputs apply when `suite-ids`, `flow-ids`, or `labels` trigger a run. Use
     os-version: latest
 ```
 
-You can also pin either value independently. For example, this pins both the
-model and OS:
+Set either input independently and use `latest` (or omit the other input) to
+keep that dimension rolling. To pin both the model and OS:
 
 ```yaml
 - uses: autosana/autosana-ci@main
