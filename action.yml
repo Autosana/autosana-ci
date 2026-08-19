@@ -19,20 +19,17 @@ inputs:
     description: "[iOS] Persist whether .ipa builds should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit to use the app's saved preference."
     required: false
   physical-device:
-    description: "[Mobile runs] Run on real hardware. Defaults to false."
+    description: "[Single-device mobile runs] Run on real hardware. Defaults to false."
     required: false
     default: "false"
   device-model:
-    description: "[Mobile runs] Device 1 model from the Autosana device catalog (for example, 'Pixel 10 Pro'). 'latest' is normalized to rolling model selection."
+    description: "[Single-device mobile runs] Model from the Autosana device catalog (for example, 'Pixel 10 Pro'). 'latest' is normalized to rolling model selection."
     required: false
   os-version:
-    description: "[Mobile runs] Device 1 OS version supported by the selected device model (for example, '17'). 'latest' is normalized to rolling OS selection."
+    description: "[Single-device mobile runs] OS version supported by the selected device model (for example, '17'). 'latest' is normalized to rolling OS selection."
     required: false
-  device-2-model:
-    description: "[Two-device mobile runs] Device 2 model. Setting this or device-2-os-version sends an ordered two-device selection. Use 'latest' for rolling model selection."
-    required: false
-  device-2-os-version:
-    description: "[Two-device mobile runs] Device 2 OS version. Setting this or device-2-model sends an ordered two-device selection. Use 'latest' for rolling OS selection."
+  devices:
+    description: "[Multi-device mobile runs] JSON array of ordered device selections. Two-device flows currently require exactly two objects with physical, model, and os_version fields as needed."
     required: false
 
   # Web-specific inputs (required when platform is web)
@@ -98,8 +95,7 @@ runs:
         PHYSICAL_DEVICE: ${{ inputs.physical-device }}
         DEVICE_MODEL: ${{ inputs.device-model }}
         OS_VERSION: ${{ inputs.os-version }}
-        DEVICE_2_MODEL: ${{ inputs.device-2-model }}
-        DEVICE_2_OS_VERSION: ${{ inputs.device-2-os-version }}
+        DEVICES: ${{ inputs.devices }}
         # Web inputs
         APP_ID: ${{ inputs.app-id }}
         URL: ${{ inputs.url }}

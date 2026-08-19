@@ -86,13 +86,12 @@ setup() {
     assert_success
 }
 
-@test "second device inputs produce the ordered two-device payload" {
+@test "devices JSON produces the ordered two-device payload" {
     export FLOW_IDS="uuid-1"
-    export PHYSICAL_DEVICE="true"
-    export DEVICE_MODEL="iPhone 17 Pro"
-    export OS_VERSION="26.0"
-    export DEVICE_2_MODEL="iPhone 16 Pro"
-    export DEVICE_2_OS_VERSION="18.5"
+    export DEVICES='[
+      {"physical": true, "model": "iPhone 17 Pro", "os_version": "26.0"},
+      {"physical": true, "model": "iPhone 16 Pro", "os_version": "18.5"}
+    ]'
     export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/two-device-request"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
 
@@ -109,12 +108,9 @@ setup() {
     assert_success
 }
 
-@test "second device latest selects two rolling virtual devices" {
+@test "devices JSON preserves rolling selections" {
     export FLOW_IDS="uuid-1"
-    export DEVICE_MODEL="latest"
-    export OS_VERSION="latest"
-    export DEVICE_2_MODEL="latest"
-    export DEVICE_2_OS_VERSION="latest"
+    export DEVICES='[{"physical": false}, {"physical": false}]'
     export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/two-latest-devices-request"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
 
@@ -126,38 +122,38 @@ setup() {
     assert_success
 }
 
-@test "only a pinned second device keeps Device 1 rolling" {
+@test "devices JSON rejects arrays that do not contain exactly two objects" {
     export FLOW_IDS="uuid-1"
-    export DEVICE_2_MODEL="iPhone 16 Pro"
-    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/pinned-second-device-request"
-    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    export DEVICES='[{"physical": false}]'
 
     run bash "$ENTRYPOINT"
 
-    assert_success
-    run jq -e '
-      (has("device") | not)
-      and .devices == [
-        {physical: false},
-        {physical: false, model: "iPhone 16 Pro"}
-      ]
-    ' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
-    assert_success
+    assert_failure
+    assert_output --partial "devices must be a JSON array containing exactly two objects"
+    refute_output --partial "Triggering flows"
 }
 
-@test "whitespace-only second device inputs do not change run arity" {
+@test "malformed devices JSON fails before triggering flows" {
     export FLOW_IDS="uuid-1"
-    export DEVICE_2_MODEL="   "
-    export DEVICE_2_OS_VERSION=$'\t'
-    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/blank-second-device-request"
-    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+    export DEVICES='[{bad json]'
 
     run bash "$ENTRYPOINT"
 
-    assert_success
-    run jq -e '(has("device") | not) and (has("devices") | not)' \
-        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
-    assert_success
+    assert_failure
+    assert_output --partial "devices must be valid JSON"
+    refute_output --partial "Triggering flows"
+}
+
+@test "devices JSON cannot be combined with legacy single-device inputs" {
+    export FLOW_IDS="uuid-1"
+    export DEVICES='[{"physical": false}, {"physical": false}]'
+    export DEVICE_MODEL="Pixel 10 Pro"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "devices cannot be combined with physical-device, device-model, or os-version"
+    refute_output --partial "Triggering flows"
 }
 
 @test "physical-device true can select real hardware without a model" {
@@ -333,13 +329,13 @@ setup() {
     assert_output --partial "ignoring them for platform 'web'"
 }
 
-@test "device 2 inputs on web are ignored" {
+@test "devices input on web is ignored" {
     export PLATFORM="web"
     export APP_ID="my-app"
     export URL="https://example.com"
     export FLOW_IDS="uuid-1"
-    export DEVICE_2_MODEL="iPhone 17 Pro"
-    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/web-device-2-request"
+    export DEVICES='[{"physical": false}, {"physical": false}]'
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/web-devices-request"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
 
     run bash "$ENTRYPOINT"
@@ -348,6 +344,20 @@ setup() {
     assert_output --partial "device selection inputs are mobile-only"
     run jq -e '(has("device") | not) and (has("devices") | not)' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
     assert_success
+}
+
+@test "malformed devices input on web is ignored" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export DEVICES='[{bad json]'
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial "device selection inputs are mobile-only"
 }
 
 # --- No-wait (fire-and-forget) mode ---

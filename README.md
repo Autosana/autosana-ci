@@ -69,10 +69,9 @@ Shared optional inputs:
 - `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when `suite-ids`, `flow-ids`, or `labels` trigger tests.
 - `enable-ios-keychain-access-group-remapping`: iOS `.ipa` only. Persist whether future IPA uploads should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit it to inherit the app's saved preference.
 - `physical-device`: Mobile runs only. Set to `true` to run on real hardware. Defaults to `false`.
-- `device-model`: Mobile runs only. Device 1 model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`.
-- `os-version`: Mobile runs only. Device 1 OS version supported by the selected model, such as `17`, or `latest`.
-- `device-2-model`: Two-device mobile runs only. Device 2 model, or `latest`.
-- `device-2-os-version`: Two-device mobile runs only. Device 2 OS version, or `latest`.
+- `device-model`: Single-device mobile runs only. Model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`.
+- `os-version`: Single-device mobile runs only. OS version supported by the selected model, such as `17`, or `latest`.
+- `devices`: Multi-device mobile runs only. JSON array of ordered device selections. Two-device flows currently require exactly two objects.
 
 Device inputs apply when `suite-ids`, `flow-ids`, or `labels` trigger a run. Use
 `latest` to make rolling model and OS selection explicit in checked-in workflows:
@@ -109,9 +108,9 @@ keep that dimension rolling. To pin both the model and OS:
 Omitting `device-model` and `os-version` retains the same rolling-latest
 behavior for backward compatibility.
 
-For a flow or suite configured to use two devices, set either Device 2 input.
-The action sends Device 1 and Device 2 in order. Both use the value of
-`physical-device`, so a pair is always entirely virtual or entirely physical.
+For a flow or suite configured to use two devices, pass an ordered JSON array
+through `devices`. Each entry supports `physical`, `model`, and `os_version`.
+Do not combine `devices` with the single-device selection inputs.
 
 ```yaml
 - uses: autosana/autosana-ci@main
@@ -121,16 +120,16 @@ The action sends Device 1 and Device 2 in order. Both use the value of
     bundle-id: com.example.app
     build-path: build/MyApp.ipa
     flow-ids: "two-device-flow-uuid"
-    physical-device: true
-    device-model: iPhone 17 Pro
-    os-version: "26"
-    device-2-model: iPhone 16 Pro
-    device-2-os-version: "18"
+    devices: |
+      [
+        {"physical": true, "model": "iPhone 17 Pro", "os_version": "26"},
+        {"physical": true, "model": "iPhone 16 Pro", "os_version": "18"}
+      ]
 ```
 
-To use rolling Latest for both virtual devices, set `device-model: latest` and
-`device-2-model: latest`. Mixed one-device and two-device targets are rejected
-by the API.
+Use `[{"physical": false}, {"physical": false}]` for two rolling Latest
+virtual devices. Mixed one-device and two-device targets are rejected by the
+API.
 
 ### Fire-and-forget runs
 
