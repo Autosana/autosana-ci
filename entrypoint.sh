@@ -676,7 +676,7 @@ DEVICE_MODEL_IS_LATEST="false"
 OS_VERSION_IS_LATEST="false"
 DEVICE_2_MODEL_IS_LATEST="false"
 DEVICE_2_OS_VERSION_IS_LATEST="false"
-if [ -n "$DEVICE_2_MODEL" ] || [ -n "$DEVICE_2_OS_VERSION" ]; then
+if [ -n "$(echo "$DEVICE_2_MODEL" | tr -d '[:space:]')" ] || [ -n "$(echo "$DEVICE_2_OS_VERSION" | tr -d '[:space:]')" ]; then
   DEVICE_2_PROVIDED="true"
 fi
 if [ "$(echo "$DEVICE_MODEL" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = "latest" ]; then

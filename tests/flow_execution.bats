@@ -126,6 +126,40 @@ setup() {
     assert_success
 }
 
+@test "only a pinned second device keeps Device 1 rolling" {
+    export FLOW_IDS="uuid-1"
+    export DEVICE_2_MODEL="iPhone 16 Pro"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/pinned-second-device-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '
+      (has("device") | not)
+      and .devices == [
+        {physical: false},
+        {physical: false, model: "iPhone 16 Pro"}
+      ]
+    ' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "whitespace-only second device inputs do not change run arity" {
+    export FLOW_IDS="uuid-1"
+    export DEVICE_2_MODEL="   "
+    export DEVICE_2_OS_VERSION=$'\t'
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/blank-second-device-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '(has("device") | not) and (has("devices") | not)' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
 @test "physical-device true can select real hardware without a model" {
     export FLOW_IDS="uuid-1"
     export PHYSICAL_DEVICE="true"
