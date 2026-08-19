@@ -86,6 +86,46 @@ setup() {
     assert_success
 }
 
+@test "second device inputs produce the ordered two-device payload" {
+    export FLOW_IDS="uuid-1"
+    export PHYSICAL_DEVICE="true"
+    export DEVICE_MODEL="iPhone 17 Pro"
+    export OS_VERSION="26.0"
+    export DEVICE_2_MODEL="iPhone 16 Pro"
+    export DEVICE_2_OS_VERSION="18.5"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/two-device-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '
+      (has("device") | not)
+      and .devices == [
+        {physical: true, model: "iPhone 17 Pro", os_version: "26.0"},
+        {physical: true, model: "iPhone 16 Pro", os_version: "18.5"}
+      ]
+    ' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "second device latest selects two rolling virtual devices" {
+    export FLOW_IDS="uuid-1"
+    export DEVICE_MODEL="latest"
+    export OS_VERSION="latest"
+    export DEVICE_2_MODEL="latest"
+    export DEVICE_2_OS_VERSION="latest"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/two-latest-devices-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '(has("device") | not) and .devices == [{physical: false}, {physical: false}]' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
 @test "physical-device true can select real hardware without a model" {
     export FLOW_IDS="uuid-1"
     export PHYSICAL_DEVICE="true"
@@ -257,6 +297,23 @@ setup() {
     assert_success
     assert_output --partial "device selection inputs are mobile-only"
     assert_output --partial "ignoring them for platform 'web'"
+}
+
+@test "device 2 inputs on web are ignored" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_IDS="uuid-1"
+    export DEVICE_2_MODEL="iPhone 17 Pro"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/web-device-2-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial "device selection inputs are mobile-only"
+    run jq -e '(has("device") | not) and (has("devices") | not)' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
 }
 
 # --- No-wait (fire-and-forget) mode ---

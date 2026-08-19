@@ -669,8 +669,16 @@ esac
 PHYSICAL_DEVICE_LOWER=$(echo "${PHYSICAL_DEVICE:-false}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
 DEVICE_MODEL_PAYLOAD="$DEVICE_MODEL"
 OS_VERSION_PAYLOAD="$OS_VERSION"
+DEVICE_2_MODEL_PAYLOAD="$DEVICE_2_MODEL"
+DEVICE_2_OS_VERSION_PAYLOAD="$DEVICE_2_OS_VERSION"
+DEVICE_2_PROVIDED="false"
 DEVICE_MODEL_IS_LATEST="false"
 OS_VERSION_IS_LATEST="false"
+DEVICE_2_MODEL_IS_LATEST="false"
+DEVICE_2_OS_VERSION_IS_LATEST="false"
+if [ -n "$DEVICE_2_MODEL" ] || [ -n "$DEVICE_2_OS_VERSION" ]; then
+  DEVICE_2_PROVIDED="true"
+fi
 if [ "$(echo "$DEVICE_MODEL" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = "latest" ]; then
   DEVICE_MODEL_PAYLOAD=""
   DEVICE_MODEL_IS_LATEST="true"
@@ -678,6 +686,14 @@ fi
 if [ "$(echo "$OS_VERSION" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = "latest" ]; then
   OS_VERSION_PAYLOAD=""
   OS_VERSION_IS_LATEST="true"
+fi
+if [ "$(echo "$DEVICE_2_MODEL" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = "latest" ]; then
+  DEVICE_2_MODEL_PAYLOAD=""
+  DEVICE_2_MODEL_IS_LATEST="true"
+fi
+if [ "$(echo "$DEVICE_2_OS_VERSION" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = "latest" ]; then
+  DEVICE_2_OS_VERSION_PAYLOAD=""
+  DEVICE_2_OS_VERSION_IS_LATEST="true"
 fi
 if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
   case "$PHYSICAL_DEVICE_LOWER" in
@@ -695,7 +711,13 @@ if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
   if [ "$OS_VERSION_IS_LATEST" = "true" ]; then
     echo "ℹ️  os-version=latest uses rolling OS selection."
   fi
-elif [ -n "$DEVICE_MODEL" ] || [ -n "$OS_VERSION" ] || [ "$PHYSICAL_DEVICE_LOWER" != "false" ]; then
+  if [ "$DEVICE_2_MODEL_IS_LATEST" = "true" ]; then
+    echo "ℹ️  device-2-model=latest uses rolling model selection."
+  fi
+  if [ "$DEVICE_2_OS_VERSION_IS_LATEST" = "true" ]; then
+    echo "ℹ️  device-2-os-version=latest uses rolling OS selection."
+  fi
+elif [ -n "$DEVICE_MODEL" ] || [ -n "$OS_VERSION" ] || [ -n "$DEVICE_2_MODEL" ] || [ -n "$DEVICE_2_OS_VERSION" ] || [ "$PHYSICAL_DEVICE_LOWER" != "false" ]; then
   echo "⚠️  device selection inputs are mobile-only; ignoring them for platform '$PLATFORM'."
 fi
 
@@ -781,13 +803,25 @@ else
     --arg physical_device "$PHYSICAL_DEVICE_LOWER" \
     --arg device_model "$DEVICE_MODEL_PAYLOAD" \
     --arg os_version "$OS_VERSION_PAYLOAD" \
+    --arg device_2_provided "$DEVICE_2_PROVIDED" \
+    --arg device_2_model "$DEVICE_2_MODEL_PAYLOAD" \
+    --arg device_2_os_version "$DEVICE_2_OS_VERSION_PAYLOAD" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
     --argjson labels "$LABELS_JSON" \
     '{bundle_id: $bundle_id, platform: $platform, flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels}
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
-     + (if $physical_device == "true" or $device_model != "" or $os_version != ""
+     + (if $device_2_provided == "true"
+        then {devices: [
+          ({physical: ($physical_device == "true")}
+            + (if $device_model != "" then {model: $device_model} else {} end)
+            + (if $os_version != "" then {os_version: $os_version} else {} end)),
+          ({physical: ($physical_device == "true")}
+            + (if $device_2_model != "" then {model: $device_2_model} else {} end)
+            + (if $device_2_os_version != "" then {os_version: $device_2_os_version} else {} end))
+        ]}
+        elif $physical_device == "true" or $device_model != "" or $os_version != ""
         then {device: ({physical: ($physical_device == "true")}
           + (if $device_model != "" then {model: $device_model} else {} end)
           + (if $os_version != "" then {os_version: $os_version} else {} end))}
