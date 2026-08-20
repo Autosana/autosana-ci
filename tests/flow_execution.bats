@@ -144,6 +144,17 @@ setup() {
     refute_output --partial "Triggering flows"
 }
 
+@test "devices JSON rejects unknown fields and invalid value types" {
+    export FLOW_IDS="uuid-1"
+    export DEVICES='[{"physical": "yes", "modell": "iPhone"}, {"physical": false}]'
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "each device may only contain physical, model, and os_version"
+    refute_output --partial "Triggering flows"
+}
+
 @test "devices JSON cannot be combined with legacy single-device inputs" {
     export FLOW_IDS="uuid-1"
     export DEVICES='[{"physical": false}, {"physical": false}]'
@@ -154,6 +165,22 @@ setup() {
     assert_failure
     assert_output --partial "devices cannot be combined with physical-device, device-model, or os-version"
     refute_output --partial "Triggering flows"
+}
+
+@test "whitespace-only single-device inputs do not conflict with devices JSON" {
+    export FLOW_IDS="uuid-1"
+    export DEVICES='[{"physical": false}, {"physical": false}]'
+    export DEVICE_MODEL="   "
+    export OS_VERSION=$'\n\t'
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/two-device-whitespace-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.devices == [{physical: false}, {physical: false}] and (has("device") | not)' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
 }
 
 @test "physical-device true can select real hardware without a model" {

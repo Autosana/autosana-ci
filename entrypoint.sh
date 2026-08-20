@@ -669,6 +669,8 @@ esac
 PHYSICAL_DEVICE_LOWER=$(echo "${PHYSICAL_DEVICE:-false}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
 DEVICE_MODEL_PAYLOAD="$DEVICE_MODEL"
 OS_VERSION_PAYLOAD="$OS_VERSION"
+DEVICE_MODEL_TRIMMED=$(echo "$DEVICE_MODEL" | tr -d '[:space:]')
+OS_VERSION_TRIMMED=$(echo "$OS_VERSION" | tr -d '[:space:]')
 DEVICE_MODEL_IS_LATEST="false"
 OS_VERSION_IS_LATEST="false"
 DEVICES_PROVIDED="false"
@@ -684,7 +686,18 @@ if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
       echo "❌ ERROR: devices must be a JSON array containing exactly two objects."
       exit 1
     fi
-    if [ "$PHYSICAL_DEVICE_LOWER" = "true" ] || [ -n "$DEVICE_MODEL" ] || [ -n "$OS_VERSION" ]; then
+    if ! echo "$DEVICES_JSON" | jq -e '
+      all(.[];
+        ((keys_unsorted - ["physical", "model", "os_version"]) | length == 0)
+        and ((has("physical") | not) or ((.physical | type) == "boolean"))
+        and ((has("model") | not) or .model == null or ((.model | type) == "string"))
+        and ((has("os_version") | not) or .os_version == null or ((.os_version | type) == "string"))
+      )
+    ' >/dev/null; then
+      echo "❌ ERROR: each device may only contain physical, model, and os_version with valid value types."
+      exit 1
+    fi
+    if [ "$PHYSICAL_DEVICE_LOWER" = "true" ] || [ -n "$DEVICE_MODEL_TRIMMED" ] || [ -n "$OS_VERSION_TRIMMED" ]; then
       echo "❌ ERROR: devices cannot be combined with physical-device, device-model, or os-version."
       exit 1
     fi
