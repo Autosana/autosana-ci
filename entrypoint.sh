@@ -697,6 +697,15 @@ if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
       echo "❌ ERROR: each device may only contain physical, model, and os_version with valid value types."
       exit 1
     fi
+    if ! echo "$DEVICES_JSON" | jq -e '
+      all(.[];
+        ((.model // null) == null or (.model | test("\\S")))
+        and ((.os_version // null) == null or (.os_version | test("\\S")))
+      )
+    ' >/dev/null; then
+      echo "❌ ERROR: device model and os_version must be non-empty when provided."
+      exit 1
+    fi
     if [ "$PHYSICAL_DEVICE_LOWER" = "true" ] || [ -n "$DEVICE_MODEL_TRIMMED" ] || [ -n "$OS_VERSION_TRIMMED" ]; then
       echo "❌ ERROR: devices cannot be combined with physical-device, device-model, or os-version."
       exit 1

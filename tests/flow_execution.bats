@@ -155,6 +155,28 @@ setup() {
     refute_output --partial "Triggering flows"
 }
 
+@test "devices JSON rejects a blank model" {
+    export FLOW_IDS="uuid-1"
+    export DEVICES='[{"physical": false, "model": "   "}, {"physical": false}]'
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "model and os_version must be non-empty when provided"
+    refute_output --partial "Triggering flows"
+}
+
+@test "devices JSON rejects a blank OS version" {
+    export FLOW_IDS="uuid-1"
+    export DEVICES='[{"physical": false}, {"physical": false, "os_version": "\t"}]'
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "model and os_version must be non-empty when provided"
+    refute_output --partial "Triggering flows"
+}
+
 @test "devices JSON cannot be combined with legacy single-device inputs" {
     export FLOW_IDS="uuid-1"
     export DEVICES='[{"physical": false}, {"physical": false}]'
