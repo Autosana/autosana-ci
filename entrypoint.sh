@@ -669,8 +669,49 @@ esac
 PHYSICAL_DEVICE_LOWER=$(echo "${PHYSICAL_DEVICE:-false}" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
 DEVICE_MODEL_PAYLOAD="$DEVICE_MODEL"
 OS_VERSION_PAYLOAD="$OS_VERSION"
+DEVICE_MODEL_TRIMMED=$(echo "$DEVICE_MODEL" | tr -d '[:space:]')
+OS_VERSION_TRIMMED=$(echo "$OS_VERSION" | tr -d '[:space:]')
 DEVICE_MODEL_IS_LATEST="false"
 OS_VERSION_IS_LATEST="false"
+DEVICES_PROVIDED="false"
+DEVICES_JSON="[]"
+if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
+  DEVICES_PROVIDED="true"
+  if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
+    if ! DEVICES_JSON=$(echo "$DEVICES" | jq -c . 2>/dev/null); then
+      echo "❌ ERROR: devices must be valid JSON."
+      exit 1
+    fi
+    if ! echo "$DEVICES_JSON" | jq -e 'type == "array" and length == 2 and all(.[]; type == "object")' >/dev/null; then
+      echo "❌ ERROR: devices must be a JSON array containing exactly two objects."
+      exit 1
+    fi
+    if ! echo "$DEVICES_JSON" | jq -e '
+      all(.[];
+        ((keys_unsorted - ["physical", "model", "os_version"]) | length == 0)
+        and ((has("physical") | not) or ((.physical | type) == "boolean"))
+        and ((has("model") | not) or .model == null or ((.model | type) == "string"))
+        and ((has("os_version") | not) or .os_version == null or ((.os_version | type) == "string"))
+      )
+    ' >/dev/null; then
+      echo "❌ ERROR: each device may only contain physical, model, and os_version with valid value types."
+      exit 1
+    fi
+    if ! echo "$DEVICES_JSON" | jq -e '
+      all(.[];
+        ((.model // null) == null or (.model | test("\\S")))
+        and ((.os_version // null) == null or (.os_version | test("\\S")))
+      )
+    ' >/dev/null; then
+      echo "❌ ERROR: device model and os_version must be non-empty when provided."
+      exit 1
+    fi
+    if [ "$PHYSICAL_DEVICE_LOWER" = "true" ] || [ -n "$DEVICE_MODEL_TRIMMED" ] || [ -n "$OS_VERSION_TRIMMED" ]; then
+      echo "❌ ERROR: devices cannot be combined with physical-device, device-model, or os-version."
+      exit 1
+    fi
+  fi
+fi
 if [ "$(echo "$DEVICE_MODEL" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = "latest" ]; then
   DEVICE_MODEL_PAYLOAD=""
   DEVICE_MODEL_IS_LATEST="true"
@@ -695,7 +736,7 @@ if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
   if [ "$OS_VERSION_IS_LATEST" = "true" ]; then
     echo "ℹ️  os-version=latest uses rolling OS selection."
   fi
-elif [ -n "$DEVICE_MODEL" ] || [ -n "$OS_VERSION" ] || [ "$PHYSICAL_DEVICE_LOWER" != "false" ]; then
+elif [ -n "$DEVICE_MODEL" ] || [ -n "$OS_VERSION" ] || [ "$DEVICES_PROVIDED" = "true" ] || [ "$PHYSICAL_DEVICE_LOWER" != "false" ]; then
   echo "⚠️  device selection inputs are mobile-only; ignoring them for platform '$PLATFORM'."
 fi
 
@@ -781,13 +822,17 @@ else
     --arg physical_device "$PHYSICAL_DEVICE_LOWER" \
     --arg device_model "$DEVICE_MODEL_PAYLOAD" \
     --arg os_version "$OS_VERSION_PAYLOAD" \
+    --arg devices_provided "$DEVICES_PROVIDED" \
+    --argjson devices "$DEVICES_JSON" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
     --argjson labels "$LABELS_JSON" \
     '{bundle_id: $bundle_id, platform: $platform, flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels}
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
-     + (if $physical_device == "true" or $device_model != "" or $os_version != ""
+     + (if $devices_provided == "true"
+        then {devices: $devices}
+        elif $physical_device == "true" or $device_model != "" or $os_version != ""
         then {device: ({physical: ($physical_device == "true")}
           + (if $device_model != "" then {model: $device_model} else {} end)
           + (if $os_version != "" then {os_version: $os_version} else {} end))}

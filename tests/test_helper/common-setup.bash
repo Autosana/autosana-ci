@@ -30,6 +30,7 @@ _common_setup() {
     export PHYSICAL_DEVICE="false"
     export DEVICE_MODEL=""
     export OS_VERSION=""
+    export DEVICES=""
     # Default to the blocking (wait) behavior so existing tests assert on the
     # full poll + summary path. No-wait tests override this explicitly.
     export WAIT="true"

@@ -68,9 +68,10 @@ Shared optional inputs:
 - `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires `suite-ids`, `flow-ids`, or `labels`.
 - `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when `suite-ids`, `flow-ids`, or `labels` trigger tests.
 - `enable-ios-keychain-access-group-remapping`: iOS `.ipa` only. Persist whether future IPA uploads should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit it to inherit the app's saved preference.
-- `physical-device`: Mobile runs only. Set to `true` to run on real hardware. Defaults to `false`.
-- `device-model`: Mobile runs only. Device model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`.
-- `os-version`: Mobile runs only. OS version supported by the selected model, such as `17`, or `latest`.
+- `physical-device`: Single-device mobile runs only. Set to `true` to run on real hardware. Defaults to `false`.
+- `device-model`: Single-device mobile runs only. Model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`.
+- `os-version`: Single-device mobile runs only. OS version supported by the selected model, such as `17`, or `latest`.
+- `devices`: Multi-device mobile runs only. JSON array of ordered device selections. Two-device flows currently require exactly two objects.
 
 Device inputs apply when `suite-ids`, `flow-ids`, or `labels` trigger a run. Use
 `latest` to make rolling model and OS selection explicit in checked-in workflows:
@@ -106,6 +107,29 @@ keep that dimension rolling. To pin both the model and OS:
 
 Omitting `device-model` and `os-version` retains the same rolling-latest
 behavior for backward compatibility.
+
+For a flow or suite configured to use two devices, pass an ordered JSON array
+through `devices`. Each entry supports `physical`, `model`, and `os_version`.
+Do not combine `devices` with the single-device selection inputs.
+
+```yaml
+- uses: autosana/autosana-ci@main
+  with:
+    api-key: ${{ secrets.AUTOSANA_KEY }}
+    platform: ios
+    bundle-id: com.example.app
+    build-path: build/MyApp.ipa
+    flow-ids: "two-device-flow-uuid"
+    devices: |
+      [
+        {"physical": true, "model": "iPhone 17 Pro", "os_version": "26"},
+        {"physical": true, "model": "iPhone 16 Pro", "os_version": "18"}
+      ]
+```
+
+Use `[{"physical": false}, {"physical": false}]` for two rolling Latest
+virtual devices. Mixed one-device and two-device targets are rejected by the
+API.
 
 ### Fire-and-forget runs
 
