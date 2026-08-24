@@ -1,10 +1,8 @@
 # Integration workflows
 
-This repository's workflows cover uploads, registration, the action's unit
-tests, and branch-aware selector integration. The branch smoke workflow runs
-the checked-out action in blocking and no-wait modes against the labeled
-definitions in `.autosana/`, including their suite setup hook.
+This repository's workflows cover uploads, registration, stable flow and suite
+selectors, blocking runs, no-wait runs, and the action's unit tests. They use
+server-side staging fixtures so this repository does not own product E2E flows.
 
-Explicit `flow-ids` and `suite-ids` payloads remain covered by the Bats suite.
-New branch-only definitions are exercised by label because they do not have a
-stable UUID before their first mainline sync.
+Code-managed flow definitions and branch-resolution E2E coverage belong in the
+repositories that own those tests.
