@@ -14,21 +14,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Fire-and-forget: trigger flows and exit immediately without polling.
+      # Fire-and-forget: trigger branch-labeled flows and exit without polling.
       # The step should finish in seconds (just the trigger + initial link
       # fetch), not wait for the flows to run on Autosana. The tight timeout
       # is the assertion: if wait:false ever regresses to blocking, this step
       # would poll until the flows finish and blow past the limit.
-      - name: Trigger flows without waiting (staging)
+      - name: Trigger branch-labeled flows without waiting (staging)
         id: trigger
         timeout-minutes: 2
-        uses: ./
-        with:
-          api-key: ${{ secrets.AUTOSANA_STAGING_KEY }}
-          api-url: https://staging.autosana.ai
-          platform: web
-          name: The Internet
-          app-id: the-internet
-          url: https://the-internet.herokuapp.com/
-          flow-ids: "9ae9c810-631f-472e-ba7d-9ca3b9f6820c,feeec631-bed1-43fe-ac16-ed65e4b9bd19"
-          wait: false
+        run: |
+          GITHUB_REPOSITORY=Autosana/AutosanaDashboard \
+          GITHUB_EVENT_PATH="$GITHUB_WORKSPACE/.github/fixtures/dashboard-smoke-pr-event.json" \
+          ./entrypoint.sh
+        env:
+          AUTOSANA_KEY: ${{ secrets.AUTOSANA_STAGING_KEY }}
+          AUTOSANA_API_URL: https://staging.autosana.ai
+          PLATFORM: web
+          APP_NAME: Autosana Dashboard (Preview)
+          APP_ID: autosana-preview
+          URL: https://app-tester-dashboard-kgm04awwx-autosana.vercel.app
+          LABELS: smoke
+          WAIT: "false"
