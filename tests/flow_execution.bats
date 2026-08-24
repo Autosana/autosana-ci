@@ -321,6 +321,8 @@ setup() {
     assert_output --partial '"labels"'
     assert_output --partial '"smoke"'
     assert_output --partial '"regression"'
+    assert_output --partial '"repo_full_name": "myorg/myrepo"'
+    assert_output --partial '"ref": "0123456789abcdef0123456789abcdef01234567"'
 }
 
 @test "LABELS combine with FLOW_IDS (union) in the payload" {
@@ -360,6 +362,19 @@ setup() {
     assert_success
     assert_output --partial '"labels"'
     assert_output --partial '"smoke"'
+    assert_output --partial '"repo_full_name": "myorg/myrepo"'
+    assert_output --partial '"ref": "0123456789abcdef0123456789abcdef01234567"'
+}
+
+@test "direct selectors require a full checked-out commit SHA" {
+    export LABELS="smoke"
+    export MOCK_GIT_SHA="short-sha"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "full Git commit SHA"
+    refute_output --partial "Triggering flows"
 }
 
 @test "device inputs on web warn before being ignored" {

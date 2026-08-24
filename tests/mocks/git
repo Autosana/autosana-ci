@@ -6,7 +6,7 @@ if [ "$MOCK_GIT_FAIL" = "1" ]; then
 fi
 
 if [[ "$*" == *"rev-parse HEAD"* ]]; then
-    echo "fakegitsha1234567890"
+    echo "${MOCK_GIT_SHA:-0123456789abcdef0123456789abcdef01234567}"
 else
     command git "$@"
 fi

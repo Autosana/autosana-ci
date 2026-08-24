@@ -67,6 +67,10 @@ Shared optional inputs:
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
 - `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires `suite-ids`, `flow-ids`, or `labels`.
 - `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when `suite-ids`, `flow-ids`, or `labels` trigger tests.
+
+Direct test runs resolve code-managed flows, suites, and labels from the exact
+checked-out commit. GitHub repository metadata and a full commit SHA are required
+when any test selector is provided.
 - `enable-ios-keychain-access-group-remapping`: iOS `.ipa` only. Persist whether future IPA uploads should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit it to inherit the app's saved preference.
 - `physical-device`: Single-device mobile runs only. Set to `true` to run on real hardware. Defaults to `false`.
 - `device-model`: Single-device mobile runs only. Model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`.
