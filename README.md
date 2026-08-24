@@ -2,6 +2,9 @@
 
 CI integration to upload new builds and trigger flows from GitHub workflows.
 
+See the [Autosana GitHub Action guide](https://docs.autosana.ai/ci-cd-integration)
+for setup instructions and complete workflow examples.
+
 ## Basic usage
 
 ```yaml
