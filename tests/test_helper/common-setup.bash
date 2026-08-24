@@ -25,6 +25,8 @@ _common_setup() {
     export ENABLE_IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING=""
     export SUITE_IDS=""
     export FLOW_IDS=""
+    export SUITE_KEYS=""
+    export FLOW_KEYS=""
     export LABELS=""
     export DEPENDENCIES=""
     export PHYSICAL_DEVICE="false"
@@ -66,4 +68,5 @@ _common_setup() {
     unset MOCK_POLL_RESPONSE_SEQUENCE_DIR
     unset MOCK_POLL_RESPONSE_COUNTER_FILE
     unset MOCK_GIT_FAIL
+    unset MOCK_GIT_SHA
 }

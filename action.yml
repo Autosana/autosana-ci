@@ -65,6 +65,12 @@ inputs:
   flow-ids:
     description: "Comma-separated flow UUIDs to run (e.g., 'uuid1,uuid2'). Not supported for Chrome extension uploads; trigger extension tests from a separate web Action step."
     required: false
+  suite-keys:
+    description: "Comma-separated code-managed suite keys to run from the checked-out commit. Can be combined with flow-keys, but not with ID or label selectors. Not supported for Chrome extension uploads."
+    required: false
+  flow-keys:
+    description: "Comma-separated code-managed flow keys to run from the checked-out commit. Can be combined with suite-keys, but not with ID or label selectors. Not supported for Chrome extension uploads."
+    required: false
   labels:
     description: "Comma-separated label names to run (e.g., 'smoke,regression'). Runs the union of all suites and flows carrying any of these labels. Combine with suite-ids/flow-ids to add to the selection. Not supported for Chrome extension uploads; trigger extension tests from a separate web Action step."
     required: false
@@ -72,10 +78,10 @@ inputs:
     description: "[Web] Playwright engine to run on: chrome (default, real Google Chrome with proprietary codecs / DRM), chromium (bundled engine, no codecs / DRM), firefox, or edge. Ignored for mobile platforms. Aliases accepted: msedge -> edge."
     required: false
   dependencies:
-    description: "[Web runs only] JSON array overriding the app's default extension loadout for this run. Omit to inherit defaults; use [] for none; entries may be app UUID strings or {\"app_id\":\"...\",\"app_build_id\":\"...\"} pins. Not supported for mobile or Chrome extension uploads."
+    description: "[Web runs only] JSON array overriding the app's default extension loadout for this run. Omit to inherit defaults; use [] for none; entries may be app UUID strings or {\"app_id\":\"...\",\"app_build_id\":\"...\"} pins. Not supported with suite-keys, mobile, or Chrome extension uploads."
     required: false
   wait:
-    description: "Wait for triggered flows to finish and gate the job on their result (default: true). Set to 'false' to trigger the flows, print their run links, and exit immediately without blocking CI. Applies when suite-ids, flow-ids, or labels trigger tests."
+    description: "Wait for triggered flows to finish and gate the job on their result (default: true). Set to 'false' to trigger the flows, print their run links, and exit immediately without blocking CI. Applies when an ID, key, or label selector triggers tests."
     required: false
     default: "true"
 runs:
@@ -108,6 +114,8 @@ runs:
         # Flow execution
         SUITE_IDS: ${{ inputs.suite-ids }}
         FLOW_IDS: ${{ inputs.flow-ids }}
+        SUITE_KEYS: ${{ inputs.suite-keys }}
+        FLOW_KEYS: ${{ inputs.flow-keys }}
         LABELS: ${{ inputs.labels }}
         WEB_BROWSER: ${{ inputs.web-browser }}
         DEPENDENCIES: ${{ inputs.dependencies }}

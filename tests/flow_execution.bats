@@ -70,6 +70,27 @@ setup() {
     assert_output --partial "Running Flows"
 }
 
+@test "flow and suite keys trigger the exact commit-scoped targets" {
+    export FLOW_KEYS=$'\tauth/login, checkout\r'
+    export SUITE_KEYS=$'smoke,\tpayments/regression '
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/key-selector-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '
+      .flow_keys == ["auth/login", "checkout"]
+      and .suite_keys == ["smoke", "payments/regression"]
+      and .repo_full_name == "myorg/myrepo"
+      and .ref == "0123456789abcdef0123456789abcdef01234567"
+      and (has("flow_ids") | not)
+      and (has("suite_ids") | not)
+      and (has("labels") | not)
+    ' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
 @test "android device inputs produce the canonical nested device payload" {
     export FLOW_IDS="uuid-1"
     export PHYSICAL_DEVICE="false"
@@ -321,6 +342,8 @@ setup() {
     assert_output --partial '"labels"'
     assert_output --partial '"smoke"'
     assert_output --partial '"regression"'
+    assert_output --partial '"repo_full_name": "myorg/myrepo"'
+    assert_output --partial '"ref": "0123456789abcdef0123456789abcdef01234567"'
 }
 
 @test "LABELS combine with FLOW_IDS (union) in the payload" {
@@ -360,6 +383,52 @@ setup() {
     assert_success
     assert_output --partial '"labels"'
     assert_output --partial '"smoke"'
+    assert_output --partial '"repo_full_name": "myorg/myrepo"'
+    assert_output --partial '"ref": "0123456789abcdef0123456789abcdef01234567"'
+}
+
+@test "direct selectors require a full checked-out commit SHA" {
+    export LABELS="smoke"
+    export MOCK_GIT_SHA="short-sha"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "full Git commit SHA"
+    refute_output --partial "Triggering flows"
+}
+
+@test "key selectors require a full checked-out commit SHA" {
+    export FLOW_KEYS="auth/login"
+    export MOCK_GIT_SHA="short-sha"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "full Git commit SHA"
+    refute_output --partial "Triggering flows"
+}
+
+@test "direct selectors reject a multiline commit SHA" {
+    export LABELS="smoke"
+    export MOCK_GIT_SHA=$'0123456789abcdef0123456789abcdef01234567\nextra'
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "full Git commit SHA"
+    refute_output --partial "Triggering flows"
+}
+
+@test "direct selectors require GitHub repository metadata" {
+    export LABELS="smoke"
+    export GITHUB_REPOSITORY=""
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "require GITHUB_REPOSITORY"
+    refute_output --partial "Triggering flows"
 }
 
 @test "device inputs on web warn before being ignored" {

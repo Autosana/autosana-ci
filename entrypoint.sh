@@ -28,6 +28,15 @@ if [ -z "$AUTOSANA_KEY" ] || [ -z "$PLATFORM" ]; then
   exit 1
 fi
 
+KEY_SELECTOR_MODE=false
+if [ -n "$FLOW_KEYS" ] || [ -n "$SUITE_KEYS" ]; then
+  KEY_SELECTOR_MODE=true
+  if [ -n "$FLOW_IDS" ] || [ -n "$SUITE_IDS" ] || [ -n "$LABELS" ]; then
+    echo "❌ ERROR: flow-keys and suite-keys cannot be combined with flow-ids, suite-ids, or labels."
+    exit 1
+  fi
+fi
+
 # Validate platform and check platform-specific inputs
 if [ "$PLATFORM" = "web" ]; then
   echo "🌐 Web platform detected"
@@ -104,7 +113,7 @@ elif [ "$PLATFORM" = "chrome-extension" ]; then
     exit 1
   fi
 
-  if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$LABELS" ]; then
+  if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$SUITE_KEYS" ] || [ -n "$FLOW_KEYS" ] || [ -n "$LABELS" ]; then
     echo "❌ ERROR: Chrome extension uploads cannot trigger tests directly."
     echo "   Upload and attach the extension, then run tests in a separate 'platform: web' Action step."
     echo "   The web app's default extensions or 'dependencies' input will control the test loadout."
@@ -179,8 +188,15 @@ if [ -n "${DEPENDENCIES:-}" ]; then
     exit 1
   fi
 
-  if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$LABELS" ]; then
-    echo "❌ ERROR: 'dependencies' requires suite-ids, flow-ids, or labels."
+  # The backend's explicit suite-key path cannot apply per-run dependency
+  # overrides yet. Fail instead of silently running with the app defaults.
+  if [ -n "$SUITE_KEYS" ]; then
+    echo "❌ ERROR: 'dependencies' cannot be combined with suite-keys."
+    exit 1
+  fi
+
+  if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$SUITE_KEYS" ] && [ -z "$FLOW_KEYS" ] && [ -z "$LABELS" ]; then
+    echo "❌ ERROR: 'dependencies' requires a flow, suite, or label selector."
     exit 1
   fi
 
@@ -225,6 +241,20 @@ echo "   COMMIT_SHA: ${COMMIT_SHA:-not set}"
 echo "   BRANCH_NAME: ${BRANCH_NAME:-not set}"
 echo "   REPO_FULL_NAME: ${REPO_FULL_NAME:-not set}"
 echo ""
+
+# Direct test selection is commit-scoped. Upload-only runs retain their existing
+# behavior, but a selected run must identify the exact checked-out revision.
+if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$SUITE_KEYS" ] || [ -n "$FLOW_KEYS" ] || [ -n "$LABELS" ]; then
+  if [[ ! "$COMMIT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+    echo "❌ ERROR: Direct test runs require a full Git commit SHA."
+    echo "   Checked-out commit: ${COMMIT_SHA:-not set}"
+    exit 1
+  fi
+  if [ -z "$REPO_FULL_NAME" ]; then
+    echo "❌ ERROR: Direct test runs require GITHUB_REPOSITORY."
+    exit 1
+  fi
+fi
 
 # ============================================================
 # WEB PLATFORM FLOW
@@ -633,10 +663,10 @@ echo "✅ Upload complete."
 fi
 
 # ============================================================
-# FLOW EXECUTION (optional — runs when suite-ids, flow-ids, or labels are provided)
+# FLOW EXECUTION (optional — runs when an ID, key, or label selector is provided)
 # ============================================================
 
-if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$LABELS" ]; then
+if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$SUITE_KEYS" ] && [ -z "$FLOW_KEYS" ] && [ -z "$LABELS" ]; then
   exit 0
 fi
 
@@ -753,6 +783,20 @@ else
   SUITE_IDS_JSON="[]"
 fi
 
+# Keys are stable identifiers declared in repo YAML. Preserve internal spaces
+# and trim only whitespace around comma-separated values.
+if [ -n "$FLOW_KEYS" ]; then
+  FLOW_KEYS_JSON=$(echo "$FLOW_KEYS" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | jq -R . | jq -s .)
+else
+  FLOW_KEYS_JSON="[]"
+fi
+
+if [ -n "$SUITE_KEYS" ]; then
+  SUITE_KEYS_JSON=$(echo "$SUITE_KEYS" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | jq -R . | jq -s .)
+else
+  SUITE_KEYS_JSON="[]"
+fi
+
 # Labels resolve server-side to the union of matching suites + flows. We only
 # trim surrounding whitespace around each name (not internal spaces) since,
 # unlike UUIDs, a label name could legitimately contain spaces.
@@ -802,11 +846,19 @@ if [ "$PLATFORM" = "web" ]; then
     --arg variables "$VARIABLES" \
     --arg web_browser "$WEB_BROWSER" \
     --arg dependencies_provided "$DEPENDENCIES_PROVIDED" \
+    --arg key_selector_mode "$KEY_SELECTOR_MODE" \
+    --arg repo_full_name "$REPO_FULL_NAME" \
+    --arg ref "$COMMIT_SHA" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
+    --argjson flow_keys "$FLOW_KEYS_JSON" \
+    --argjson suite_keys "$SUITE_KEYS_JSON" \
     --argjson labels "$LABELS_JSON" \
     --argjson dependencies "$DEPENDENCIES_JSON" \
-    '{app_id: $app_id, flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels}
+    '{app_id: $app_id, repo_full_name: $repo_full_name, ref: $ref}
+     + (if $key_selector_mode == "true"
+        then {flow_keys: $flow_keys, suite_keys: $suite_keys}
+        else {flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels} end)
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
      + (if $web_browser != "" then {web_browser: $web_browser} else {} end)
@@ -823,11 +875,19 @@ else
     --arg device_model "$DEVICE_MODEL_PAYLOAD" \
     --arg os_version "$OS_VERSION_PAYLOAD" \
     --arg devices_provided "$DEVICES_PROVIDED" \
+    --arg key_selector_mode "$KEY_SELECTOR_MODE" \
+    --arg repo_full_name "$REPO_FULL_NAME" \
+    --arg ref "$COMMIT_SHA" \
     --argjson devices "$DEVICES_JSON" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
+    --argjson flow_keys "$FLOW_KEYS_JSON" \
+    --argjson suite_keys "$SUITE_KEYS_JSON" \
     --argjson labels "$LABELS_JSON" \
-    '{bundle_id: $bundle_id, platform: $platform, flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels}
+    '{bundle_id: $bundle_id, platform: $platform, repo_full_name: $repo_full_name, ref: $ref}
+     + (if $key_selector_mode == "true"
+        then {flow_keys: $flow_keys, suite_keys: $suite_keys}
+        else {flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels} end)
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
      + (if $devices_provided == "true"
