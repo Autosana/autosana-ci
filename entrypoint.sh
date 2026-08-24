@@ -229,7 +229,7 @@ echo ""
 # Direct test selection is commit-scoped. Upload-only runs retain their existing
 # behavior, but a selected run must identify the exact checked-out revision.
 if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$LABELS" ]; then
-  if ! echo "$COMMIT_SHA" | grep -qE '^[0-9a-fA-F]{40}$'; then
+  if [[ ! "$COMMIT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
     echo "❌ ERROR: Direct test runs require a full Git commit SHA."
     echo "   Checked-out commit: ${COMMIT_SHA:-not set}"
     exit 1

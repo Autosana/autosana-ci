@@ -377,6 +377,28 @@ setup() {
     refute_output --partial "Triggering flows"
 }
 
+@test "direct selectors reject a multiline commit SHA" {
+    export LABELS="smoke"
+    export MOCK_GIT_SHA=$'0123456789abcdef0123456789abcdef01234567\nextra'
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "full Git commit SHA"
+    refute_output --partial "Triggering flows"
+}
+
+@test "direct selectors require GitHub repository metadata" {
+    export LABELS="smoke"
+    export GITHUB_REPOSITORY=""
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "require GITHUB_REPOSITORY"
+    refute_output --partial "Triggering flows"
+}
+
 @test "device inputs on web warn before being ignored" {
     export PLATFORM="web"
     export APP_ID="my-app"
