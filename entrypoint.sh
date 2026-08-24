@@ -226,6 +226,20 @@ echo "   BRANCH_NAME: ${BRANCH_NAME:-not set}"
 echo "   REPO_FULL_NAME: ${REPO_FULL_NAME:-not set}"
 echo ""
 
+# Direct test selection is commit-scoped. Upload-only runs retain their existing
+# behavior, but a selected run must identify the exact checked-out revision.
+if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$LABELS" ]; then
+  if [[ ! "$COMMIT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+    echo "❌ ERROR: Direct test runs require a full Git commit SHA."
+    echo "   Checked-out commit: ${COMMIT_SHA:-not set}"
+    exit 1
+  fi
+  if [ -z "$REPO_FULL_NAME" ]; then
+    echo "❌ ERROR: Direct test runs require GITHUB_REPOSITORY."
+    exit 1
+  fi
+fi
+
 # ============================================================
 # WEB PLATFORM FLOW
 # ============================================================
@@ -802,11 +816,14 @@ if [ "$PLATFORM" = "web" ]; then
     --arg variables "$VARIABLES" \
     --arg web_browser "$WEB_BROWSER" \
     --arg dependencies_provided "$DEPENDENCIES_PROVIDED" \
+    --arg repo_full_name "$REPO_FULL_NAME" \
+    --arg ref "$COMMIT_SHA" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
     --argjson labels "$LABELS_JSON" \
     --argjson dependencies "$DEPENDENCIES_JSON" \
-    '{app_id: $app_id, flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels}
+    '{app_id: $app_id, flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels,
+      repo_full_name: $repo_full_name, ref: $ref}
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
      + (if $web_browser != "" then {web_browser: $web_browser} else {} end)
@@ -823,11 +840,14 @@ else
     --arg device_model "$DEVICE_MODEL_PAYLOAD" \
     --arg os_version "$OS_VERSION_PAYLOAD" \
     --arg devices_provided "$DEVICES_PROVIDED" \
+    --arg repo_full_name "$REPO_FULL_NAME" \
+    --arg ref "$COMMIT_SHA" \
     --argjson devices "$DEVICES_JSON" \
     --argjson flow_ids "$FLOW_IDS_JSON" \
     --argjson suite_ids "$SUITE_IDS_JSON" \
     --argjson labels "$LABELS_JSON" \
-    '{bundle_id: $bundle_id, platform: $platform, flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels}
+    '{bundle_id: $bundle_id, platform: $platform, flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels,
+      repo_full_name: $repo_full_name, ref: $ref}
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
      + (if $devices_provided == "true"

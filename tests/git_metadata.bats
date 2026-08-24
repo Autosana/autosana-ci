@@ -9,14 +9,14 @@ setup() {
     export GITHUB_EVENT_PATH="$PROJECT_ROOT/tests/fixtures/github_event_pr.json"
     run bash "$ENTRYPOINT"
     assert_success
-    assert_output --partial "COMMIT_SHA: pr-head-sha-abcdef123456"
+    assert_output --partial "COMMIT_SHA: abcdef0123456789abcdef0123456789abcdef01"
 }
 
 @test "falls back to git rev-parse when no PR event" {
     export GITHUB_EVENT_PATH="$PROJECT_ROOT/tests/fixtures/github_event_push.json"
     run bash "$ENTRYPOINT"
     assert_success
-    assert_output --partial "COMMIT_SHA: fakegitsha1234567890"
+    assert_output --partial "COMMIT_SHA: 0123456789abcdef0123456789abcdef01234567"
 }
 
 @test "falls back to GITHUB_SHA when git fails" {

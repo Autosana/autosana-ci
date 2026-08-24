@@ -66,4 +66,5 @@ _common_setup() {
     unset MOCK_POLL_RESPONSE_SEQUENCE_DIR
     unset MOCK_POLL_RESPONSE_COUNTER_FILE
     unset MOCK_GIT_FAIL
+    unset MOCK_GIT_SHA
 }

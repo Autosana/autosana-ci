@@ -73,6 +73,10 @@ Shared optional inputs:
 - `os-version`: Single-device mobile runs only. OS version supported by the selected model, such as `17`, or `latest`.
 - `devices`: Multi-device mobile runs only. JSON array of ordered device selections. Two-device flows currently require exactly two objects.
 
+Direct test runs resolve code-managed flows, suites, and labels from the exact
+checked-out commit. GitHub repository metadata and a full commit SHA are required
+when any test selector is provided.
+
 Device inputs apply when `suite-ids`, `flow-ids`, or `labels` trigger a run. Use
 `latest` to make rolling model and OS selection explicit in checked-in workflows:
 
