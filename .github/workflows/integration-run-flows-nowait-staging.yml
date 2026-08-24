@@ -25,7 +25,7 @@ jobs:
         run: |
           GITHUB_REPOSITORY=Autosana/AutosanaDashboard \
           GITHUB_EVENT_PATH="$GITHUB_WORKSPACE/.github/fixtures/dashboard-smoke-pr-event.json" \
-          ./entrypoint.sh
+          bash ./entrypoint.sh
         env:
           AUTOSANA_KEY: ${{ secrets.AUTOSANA_STAGING_KEY }}
           AUTOSANA_API_URL: https://staging.autosana.ai
