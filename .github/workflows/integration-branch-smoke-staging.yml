@@ -29,3 +29,18 @@ jobs:
           environment: staging
           labels: autosana-ci-smoke
           web-browser: chromium
+
+      - name: Trigger branch-defined smoke flow without waiting
+        timeout-minutes: 2
+        uses: ./
+        with:
+          api-key: ${{ secrets.AUTOSANA_STAGING_KEY }}
+          api-url: https://staging.autosana.ai
+          platform: web
+          name: Autosana CI Branch Smoke
+          app-id: autosana-ci-branch-smoke
+          url: https://the-internet.herokuapp.com/
+          environment: staging
+          labels: autosana-ci-smoke
+          web-browser: chromium
+          wait: false
