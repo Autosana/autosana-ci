@@ -17,19 +17,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run branch-defined smoke flow
-        uses: ./
-        with:
-          api-key: ${{ secrets.AUTOSANA_STAGING_KEY }}
-          api-url: https://staging.autosana.ai
-          platform: web
-          name: Autosana CI Branch Smoke
-          app-id: autosana-ci-branch-smoke
-          url: https://the-internet.herokuapp.com/
-          environment: staging
-          labels: autosana-ci-smoke
-          web-browser: chromium
-
       - name: Trigger branch-defined smoke flow without waiting
         timeout-minutes: 2
         uses: ./
@@ -44,3 +31,16 @@ jobs:
           labels: autosana-ci-smoke
           web-browser: chromium
           wait: false
+
+      - name: Run branch-defined smoke flow
+        uses: ./
+        with:
+          api-key: ${{ secrets.AUTOSANA_STAGING_KEY }}
+          api-url: https://staging.autosana.ai
+          platform: web
+          name: Autosana CI Branch Smoke
+          app-id: autosana-ci-branch-smoke
+          url: https://the-internet.herokuapp.com/
+          environment: staging
+          labels: autosana-ci-smoke
+          web-browser: chromium
