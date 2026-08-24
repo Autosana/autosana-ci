@@ -1,0 +1,11 @@
+key: branch-smoke/login-page
+name: Autosana CI Branch Smoke | Login Page
+labels:
+- autosana-ci-smoke
+instructions: |-
+  Confirm the setup hook marker is exactly "branch-hook-ran": ${env:AUTOSANA_CI_BRANCH_MARKER}
+  Fail the flow if the marker is missing or has any other value.
+
+  Navigate to /login.
+
+  Verify the page shows a Login heading, Username and Password fields, and a Login button.

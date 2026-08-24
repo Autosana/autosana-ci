@@ -1,0 +1,6 @@
+name: Autosana CI Branch Smoke
+description: Verifies that Autosana CI runs definitions from the pull request commit.
+setup_hooks:
+- autosana-ci-branch-smoke-marker
+flows:
+- branch-smoke/login-page
