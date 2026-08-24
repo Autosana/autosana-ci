@@ -357,6 +357,20 @@ setup() {
     assert_output --partial '"dependencies": []'
 }
 
+@test "web suite-key runs reject dependencies that the backend cannot apply" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export SUITE_KEYS="smoke"
+    export DEPENDENCIES='[]'
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "'dependencies' cannot be combined with suite-keys"
+    refute_output --partial "Registering web build"
+}
+
 # --- Valid inputs pass validation ---
 
 @test "valid web inputs pass validation" {

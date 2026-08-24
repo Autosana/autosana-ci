@@ -71,8 +71,8 @@ setup() {
 }
 
 @test "flow and suite keys trigger the exact commit-scoped targets" {
-    export FLOW_KEYS="auth/login, checkout"
-    export SUITE_KEYS="smoke, payments/regression"
+    export FLOW_KEYS=$'\tauth/login, checkout\r'
+    export SUITE_KEYS=$'smoke,\tpayments/regression '
     export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/key-selector-request"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
 

@@ -78,7 +78,7 @@ inputs:
     description: "[Web] Playwright engine to run on: chrome (default, real Google Chrome with proprietary codecs / DRM), chromium (bundled engine, no codecs / DRM), firefox, or edge. Ignored for mobile platforms. Aliases accepted: msedge -> edge."
     required: false
   dependencies:
-    description: "[Web runs only] JSON array overriding the app's default extension loadout for this run. Omit to inherit defaults; use [] for none; entries may be app UUID strings or {\"app_id\":\"...\",\"app_build_id\":\"...\"} pins. Not supported for mobile or Chrome extension uploads."
+    description: "[Web runs only] JSON array overriding the app's default extension loadout for this run. Omit to inherit defaults; use [] for none; entries may be app UUID strings or {\"app_id\":\"...\",\"app_build_id\":\"...\"} pins. Not supported with suite-keys, mobile, or Chrome extension uploads."
     required: false
   wait:
     description: "Wait for triggered flows to finish and gate the job on their result (default: true). Set to 'false' to trigger the flows, print their run links, and exit immediately without blocking CI. Applies when an ID, key, or label selector triggers tests."

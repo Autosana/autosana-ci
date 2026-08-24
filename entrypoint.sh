@@ -188,6 +188,13 @@ if [ -n "${DEPENDENCIES:-}" ]; then
     exit 1
   fi
 
+  # The backend's explicit suite-key path cannot apply per-run dependency
+  # overrides yet. Fail instead of silently running with the app defaults.
+  if [ -n "$SUITE_KEYS" ]; then
+    echo "❌ ERROR: 'dependencies' cannot be combined with suite-keys."
+    exit 1
+  fi
+
   if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$SUITE_KEYS" ] && [ -z "$FLOW_KEYS" ] && [ -z "$LABELS" ]; then
     echo "❌ ERROR: 'dependencies' requires a flow, suite, or label selector."
     exit 1
@@ -779,13 +786,13 @@ fi
 # Keys are stable identifiers declared in repo YAML. Preserve internal spaces
 # and trim only whitespace around comma-separated values.
 if [ -n "$FLOW_KEYS" ]; then
-  FLOW_KEYS_JSON=$(echo "$FLOW_KEYS" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | sed '/^$/d' | jq -R . | jq -s .)
+  FLOW_KEYS_JSON=$(echo "$FLOW_KEYS" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | jq -R . | jq -s .)
 else
   FLOW_KEYS_JSON="[]"
 fi
 
 if [ -n "$SUITE_KEYS" ]; then
-  SUITE_KEYS_JSON=$(echo "$SUITE_KEYS" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | sed '/^$/d' | jq -R . | jq -s .)
+  SUITE_KEYS_JSON=$(echo "$SUITE_KEYS" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | jq -R . | jq -s .)
 else
   SUITE_KEYS_JSON="[]"
 fi
