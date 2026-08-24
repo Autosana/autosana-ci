@@ -175,10 +175,12 @@ setup() {
     export BUILD_PATH="$BATS_TEST_TMPDIR/extension.zip"
     touch "$BUILD_PATH"
 
-    local selectors=("FLOW_IDS=flow-1" "SUITE_IDS=suite-1" "LABELS=smoke")
+    local selectors=("FLOW_IDS=flow-1" "SUITE_IDS=suite-1" "FLOW_KEYS=login" "SUITE_KEYS=smoke" "LABELS=smoke")
     for selector in "${selectors[@]}"; do
         export FLOW_IDS=""
         export SUITE_IDS=""
+        export FLOW_KEYS=""
+        export SUITE_KEYS=""
         export LABELS=""
         export "${selector?}"
 
@@ -187,6 +189,32 @@ setup() {
         assert_output --partial "Chrome extension uploads cannot trigger tests directly"
         assert_output --partial "Upload and attach the extension, then run tests in a separate 'platform: web' Action step"
         refute_output --partial "Ensuring jq"
+        refute_output --partial "Starting upload process"
+    done
+}
+
+@test "key selectors cannot be combined with ID or label selectors" {
+    local selector_pairs=(
+        "FLOW_KEYS=login FLOW_IDS=flow-1"
+        "FLOW_KEYS=login SUITE_IDS=suite-1"
+        "FLOW_KEYS=login LABELS=smoke"
+        "SUITE_KEYS=smoke FLOW_IDS=flow-1"
+        "SUITE_KEYS=smoke SUITE_IDS=suite-1"
+        "SUITE_KEYS=smoke LABELS=regression"
+    )
+
+    for selector_pair in "${selector_pairs[@]}"; do
+        export FLOW_IDS=""
+        export SUITE_IDS=""
+        export FLOW_KEYS=""
+        export SUITE_KEYS=""
+        export LABELS=""
+        eval "export $selector_pair"
+
+        run bash "$ENTRYPOINT"
+
+        assert_failure
+        assert_output --partial "flow-keys and suite-keys cannot be combined with flow-ids, suite-ids, or labels"
         refute_output --partial "Starting upload process"
     done
 }
@@ -310,8 +338,23 @@ setup() {
     export DEPENDENCIES='[]'
     run bash "$ENTRYPOINT"
     assert_failure
-    assert_output --partial "'dependencies' requires suite-ids, flow-ids, or labels"
+    assert_output --partial "'dependencies' requires a flow, suite, or label selector"
     refute_output --partial "Registering web build"
+}
+
+@test "web key-selected runs accept dependencies" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FLOW_KEYS="login"
+    export DEPENDENCIES='[]'
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial '"flow_keys"'
+    assert_output --partial '"dependencies": []'
 }
 
 # --- Valid inputs pass validation ---
