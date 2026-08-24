@@ -25,6 +25,8 @@ _common_setup() {
     export ENABLE_IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING=""
     export SUITE_IDS=""
     export FLOW_IDS=""
+    export SUITE_KEYS=""
+    export FLOW_KEYS=""
     export LABELS=""
     export DEPENDENCIES=""
     export PHYSICAL_DEVICE="false"

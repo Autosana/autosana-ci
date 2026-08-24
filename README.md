@@ -63,10 +63,12 @@ Shared optional inputs:
 - `variables`: Key-value variables exposed to flow instructions via `${env:KEY}`. Use `KEY1=VALUE1,KEY2=VALUE2`.
 - `suite-ids`: Comma-separated suite UUIDs to run after a web or mobile upload
 - `flow-ids`: Comma-separated flow UUIDs to run after a web or mobile upload
+- `suite-keys`: Comma-separated code-managed suite keys to run from the checked-out commit
+- `flow-keys`: Comma-separated code-managed flow keys to run from the checked-out commit
 - `labels`: Comma-separated label names to run after a web or mobile upload (e.g. `smoke` or `smoke,regression`). Runs the union of every suite and flow carrying any of the given labels, so you can replace long `flow-ids` lists with a single label. Combine with `suite-ids`/`flow-ids` to add to the selection. If no suite or flow matches, the action fails.
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
-- `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires `suite-ids`, `flow-ids`, or `labels`.
-- `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when `suite-ids`, `flow-ids`, or `labels` trigger tests.
+- `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires a flow, suite, or label selector. Currently unsupported with `suite-keys`.
+- `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when any flow, suite, or label selector triggers tests.
 - `enable-ios-keychain-access-group-remapping`: iOS `.ipa` only. Persist whether future IPA uploads should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit it to inherit the app's saved preference.
 - `physical-device`: Single-device mobile runs only. Set to `true` to run on real hardware. Defaults to `false`.
 - `device-model`: Single-device mobile runs only. Model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`.
@@ -77,7 +79,21 @@ Direct test runs resolve code-managed flows, suites, and labels from the exact
 checked-out commit. GitHub repository metadata and a full commit SHA are required
 when any test selector is provided.
 
-Device inputs apply when `suite-ids`, `flow-ids`, or `labels` trigger a run. Use
+Use stable YAML keys instead of Autosana UUIDs for code-managed targets. Flow and
+suite keys can be combined with each other, but not with ID or label selectors:
+
+```yaml
+- uses: autosana/autosana-ci@main
+  with:
+    api-key: ${{ secrets.AUTOSANA_KEY }}
+    platform: android
+    bundle-id: com.example.app
+    build-path: build/app-release.apk
+    flow-keys: "auth/login,checkout"
+    suite-keys: "smoke"
+```
+
+Device inputs apply when any flow, suite, or label selector triggers a run. Use
 `latest` to make rolling model and OS selection explicit in checked-in workflows:
 
 ```yaml
@@ -137,7 +153,7 @@ API.
 
 ### Fire-and-forget runs
 
-By default, when you pass `suite-ids`, `flow-ids`, or `labels`, the action waits for the flows to finish so the job's exit code reflects the test result. To instead trigger the runs and let CI move on while tests execute on Autosana, set `wait: false`:
+By default, when you pass a flow, suite, or label selector, the action waits for the flows to finish so the job's exit code reflects the test result. To instead trigger the runs and let CI move on while tests execute on Autosana, set `wait: false`:
 
 ```yaml
 - uses: autosana/autosana-ci@main
@@ -156,16 +172,16 @@ Platform-specific required inputs:
 - Chrome extension (`chrome-extension`): `bundle-id`, `build-path` (a `.zip` containing the unpacked Manifest V3 extension)
 - Web (`web`): `app-id`, `url`
 
-Chrome extension Actions only upload extension builds. Do not pass `suite-ids`,
-`flow-ids`, or `labels` to that step. Attach the extension to a web app, then
+Chrome extension Actions only upload extension builds. Do not pass flow, suite,
+or label selectors to that step. Attach the extension to a web app, then
 trigger tests in a separate `platform: web` Action step; use that app's default
 extensions or the web step's `dependencies` override.
 
 ### Web extension loadout overrides
 
 The `dependencies` input changes the Chrome extensions loaded for web runs
-triggered by the upload's configured automations and by `suite-ids`,
-`flow-ids`, or `labels`:
+triggered by the upload's configured automations and by any flow, suite, or
+label selector:
 
 ```yaml
 # Omit dependencies to inherit the web app's configured defaults.
@@ -181,7 +197,7 @@ dependencies: >-
     "app_build_id":"33333333-3333-3333-3333-333333333333"}]
 ```
 
-This input is not supported for mobile or Chrome extension uploads.
+This input is not supported with `suite-keys`, mobile, or Chrome extension uploads.
 
 ## Example with optional inputs
 
