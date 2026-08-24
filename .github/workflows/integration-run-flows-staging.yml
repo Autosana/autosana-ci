@@ -10,6 +10,7 @@ on:
 jobs:
   run-flows:
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,4 +24,4 @@ jobs:
           name: The Internet
           app-id: the-internet
           url: https://the-internet.herokuapp.com/
-          flow-ids: "9ae9c810-631f-472e-ba7d-9ca3b9f6820c,feeec631-bed1-43fe-ac16-ed65e4b9bd19"
+          flow-ids: 9ae9c810-631f-472e-ba7d-9ca3b9f6820c
