@@ -232,9 +232,9 @@ fi
 # For pull_request events, git rev-parse HEAD returns a merge commit SHA, not the PR head.
 # Extract the PR head SHA from the event payload instead.
 PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "$GITHUB_EVENT_PATH" 2>/dev/null)
-COMMIT_SHA="${PR_HEAD_SHA:-$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")}"
-BRANCH_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-REPO_FULL_NAME="${GITHUB_REPOSITORY:-}"
+COMMIT_SHA="${COMMIT_SHA_OVERRIDE:-${PR_HEAD_SHA:-$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")}}"
+BRANCH_NAME="${BRANCH_NAME_OVERRIDE:-${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}}"
+REPO_FULL_NAME="${REPO_FULL_NAME_OVERRIDE:-${GITHUB_REPOSITORY:-}}"
 
 echo "📦 Git Metadata (for PR integration):"
 echo "   COMMIT_SHA: ${COMMIT_SHA:-not set}"

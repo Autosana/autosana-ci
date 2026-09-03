@@ -43,6 +43,9 @@ _common_setup() {
     # uninitialized WEB_BROWSER like "develop" or "main" could otherwise
     # cause spurious failures across most tests.
     export WEB_BROWSER=""
+    export COMMIT_SHA_OVERRIDE=""
+    export BRANCH_NAME_OVERRIDE=""
+    export REPO_FULL_NAME_OVERRIDE=""
 
     # GitHub env vars (mocked)
     export GITHUB_EVENT_PATH="$PROJECT_ROOT/tests/fixtures/github_event_push.json"

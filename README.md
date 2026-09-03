@@ -64,6 +64,7 @@ Shared optional inputs:
 - `environment`: Environment name such as `staging` or `production`. Chrome extensions are organization-wide and ignore this input.
 - `api-url`: Override the API base URL. Defaults to `https://backend.autosana.ai`
 - `variables`: Key-value variables exposed to flow instructions via `${env:KEY}`. Use `KEY1=VALUE1,KEY2=VALUE2`.
+- `commit-sha`, `branch-name`, `repo-full-name`: Override inferred Git metadata. Useful when a trusted scheduled workflow registers a deployment for another commit.
 - `suite-ids`: Comma-separated suite UUIDs to run after a web or mobile upload
 - `flow-ids`: Comma-separated flow UUIDs to run after a web or mobile upload
 - `suite-keys`: Comma-separated code-managed suite keys to run from the checked-out commit

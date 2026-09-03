@@ -35,3 +35,16 @@ setup() {
     assert_success
     assert_output --partial "BRANCH_NAME: feature/my-branch"
 }
+
+@test "explicit git metadata overrides scheduled workflow defaults" {
+    export COMMIT_SHA_OVERRIDE="fedcba9876543210fedcba9876543210fedcba98"
+    export BRANCH_NAME_OVERRIDE="feature/scheduled-preview"
+    export REPO_FULL_NAME_OVERRIDE="Autosana/AutosanaDashboard"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial "COMMIT_SHA: fedcba9876543210fedcba9876543210fedcba98"
+    assert_output --partial "BRANCH_NAME: feature/scheduled-preview"
+    assert_output --partial "REPO_FULL_NAME: Autosana/AutosanaDashboard"
+}

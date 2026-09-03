@@ -57,6 +57,15 @@ inputs:
   variables:
     description: "Key-value variables to pass to flow instructions (format: KEY1=VALUE1,KEY2=VALUE2)"
     required: false
+  commit-sha:
+    description: "Git commit SHA to associate with the build. Defaults to the current pull request head or checkout."
+    required: false
+  branch-name:
+    description: "Git branch to associate with the build. Defaults to the current pull request head or checkout."
+    required: false
+  repo-full-name:
+    description: "GitHub repository to associate with the build. Defaults to the current repository."
+    required: false
 
   # Flow execution inputs (optional for web/mobile; unsupported for chrome-extension uploads)
   suite-ids:
@@ -111,6 +120,9 @@ runs:
         AUTOSANA_API_URL: ${{ inputs.api-url }}
         # Build variables
         VARIABLES: ${{ inputs.variables }}
+        COMMIT_SHA_OVERRIDE: ${{ inputs.commit-sha }}
+        BRANCH_NAME_OVERRIDE: ${{ inputs.branch-name }}
+        REPO_FULL_NAME_OVERRIDE: ${{ inputs.repo-full-name }}
         # Flow execution
         SUITE_IDS: ${{ inputs.suite-ids }}
         FLOW_IDS: ${{ inputs.flow-ids }}
