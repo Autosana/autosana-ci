@@ -30,6 +30,38 @@ jobs:
       - name: Run Bats tests
         run: bats tests/*.bats
 
+      - name: Isolate HTTP transport for the composite-action contract test
+        run: |
+          mkdir -p "$RUNNER_TEMP/action-transport"
+          cp tests/mocks/curl "$RUNNER_TEMP/action-transport/curl"
+          echo "$RUNNER_TEMP/action-transport" >> "$GITHUB_PATH"
+
+      - name: Register a target revision through the public action inputs
+        uses: ./
+        env:
+          MOCK_CURL_CAPTURE_DIR: ${{ runner.temp }}/metadata-requests
+        with:
+          api-key: test-only-not-a-credential
+          api-url: http://mock-api.local
+          platform: web
+          app-id: metadata-contract
+          url: https://preview.example.com
+          commit-sha: c8f3a5530b020bec1ccd61cea491c4e67edafd94
+          branch-name: feature/metadata-contract
+          repo-full-name: example/preview-app
+          labels: smoke
+
+      - name: Verify action inputs reached registration and test dispatch
+        run: |
+          jq -e '.commit_sha == "c8f3a5530b020bec1ccd61cea491c4e67edafd94"
+            and .branch_name == "feature/metadata-contract"
+            and .repo_full_name == "example/preview-app"' \
+            "$RUNNER_TEMP/metadata-requests/UPLOAD_WEB.json"
+          jq -e '.ref == "c8f3a5530b020bec1ccd61cea491c4e67edafd94"
+            and .repo_full_name == "example/preview-app"
+            and .labels == ["smoke"]' \
+            "$RUNNER_TEMP/metadata-requests/RUN_FLOWS.json"
+
   coverage:
     if: github.event_name == 'pull_request'
     # Kcov's official v42 binary targets Ubuntu 22.04's binutils ABI.

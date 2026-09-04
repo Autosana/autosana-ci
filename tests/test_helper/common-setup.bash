@@ -50,6 +50,9 @@ _common_setup() {
     export GITHUB_HEAD_REF=""
     export GITHUB_REF_NAME="main"
     export GITHUB_REPOSITORY="myorg/myrepo"
+    export AUTOSANA_COMMIT_SHA=""
+    export AUTOSANA_BRANCH_NAME=""
+    export AUTOSANA_REPO_FULL_NAME=""
 
     # Reset mock overrides
     unset MOCK_CURL_STATUS_START_UPLOAD

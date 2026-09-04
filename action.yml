@@ -41,6 +41,15 @@ inputs:
     required: false
 
   # Shared optional inputs
+  commit-sha:
+    description: "Full 40-character commit SHA for this build and selected tests. Overrides PR event and checkout metadata without changing the checkout."
+    required: false
+  branch-name:
+    description: "Branch associated with this build. Defaults to GitHub's head branch or ref name."
+    required: false
+  repo-full-name:
+    description: "Repository associated with this build and selected tests (owner/repo). Defaults to GITHUB_REPOSITORY."
+    required: false
   name:
     description: "Display name for your app (optional, will update if app already exists)"
     required: false
@@ -66,10 +75,10 @@ inputs:
     description: "Comma-separated flow UUIDs to run (e.g., 'uuid1,uuid2'). Not supported for Chrome extension uploads; trigger extension tests from a separate web Action step."
     required: false
   suite-keys:
-    description: "Comma-separated code-managed suite keys to run from the checked-out commit. Can be combined with flow-keys, but not with ID or label selectors. Not supported for Chrome extension uploads."
+    description: "Comma-separated code-managed suite keys to run from the resolved commit (commit-sha when provided). Can be combined with flow-keys, but not with ID or label selectors. Not supported for Chrome extension uploads."
     required: false
   flow-keys:
-    description: "Comma-separated code-managed flow keys to run from the checked-out commit. Can be combined with suite-keys, but not with ID or label selectors. Not supported for Chrome extension uploads."
+    description: "Comma-separated code-managed flow keys to run from the resolved commit (commit-sha when provided). Can be combined with suite-keys, but not with ID or label selectors. Not supported for Chrome extension uploads."
     required: false
   labels:
     description: "Comma-separated label names to run (e.g., 'smoke,regression'). Runs the union of all suites and flows carrying any of these labels. Combine with suite-ids/flow-ids to add to the selection. Not supported for Chrome extension uploads; trigger extension tests from a separate web Action step."
@@ -106,6 +115,9 @@ runs:
         APP_ID: ${{ inputs.app-id }}
         URL: ${{ inputs.url }}
         # Shared
+        AUTOSANA_COMMIT_SHA: ${{ inputs.commit-sha }}
+        AUTOSANA_BRANCH_NAME: ${{ inputs.branch-name }}
+        AUTOSANA_REPO_FULL_NAME: ${{ inputs.repo-full-name }}
         APP_NAME: ${{ inputs.name }}
         ENVIRONMENT: ${{ inputs.environment }}
         AUTOSANA_API_URL: ${{ inputs.api-url }}

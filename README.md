@@ -60,14 +60,17 @@ disable remapping for the app.
 
 Shared optional inputs:
 
+- `commit-sha`: Full 40-character commit SHA for the uploaded build and selected tests. Defaults to the PR head from the event, then the checkout commit, then `GITHUB_SHA`.
+- `branch-name`: Branch associated with the build. Defaults to `GITHUB_HEAD_REF`, then `GITHUB_REF_NAME`.
+- `repo-full-name`: Repository associated with the build and selected tests (`owner/repo`). Defaults to `GITHUB_REPOSITORY`.
 - `name`: Display name for the app
 - `environment`: Environment name such as `staging` or `production`. Chrome extensions are organization-wide and ignore this input.
 - `api-url`: Override the API base URL. Defaults to `https://backend.autosana.ai`
 - `variables`: Key-value variables exposed to flow instructions via `${env:KEY}`. Use `KEY1=VALUE1,KEY2=VALUE2`.
 - `suite-ids`: Comma-separated suite UUIDs to run after a web or mobile upload
 - `flow-ids`: Comma-separated flow UUIDs to run after a web or mobile upload
-- `suite-keys`: Comma-separated code-managed suite keys to run from the checked-out commit
-- `flow-keys`: Comma-separated code-managed flow keys to run from the checked-out commit
+- `suite-keys`: Comma-separated code-managed suite keys to run from the resolved commit
+- `flow-keys`: Comma-separated code-managed flow keys to run from the resolved commit
 - `labels`: Comma-separated label names to run after a web or mobile upload (e.g. `smoke` or `smoke,regression`). Runs the union of every suite and flow carrying any of the given labels, so you can replace long `flow-ids` lists with a single label. Combine with `suite-ids`/`flow-ids` to add to the selection. If no suite or flow matches, the action fails.
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
 - `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires a flow, suite, or label selector. Currently unsupported with `suite-keys`.
@@ -79,8 +82,14 @@ Shared optional inputs:
 - `devices`: Multi-device mobile runs only. JSON array of ordered device selections. Two-device flows currently require exactly two objects.
 
 Direct test runs resolve code-managed flows, suites, and labels from the exact
-checked-out commit. GitHub repository metadata and a full commit SHA are required
+resolved commit (`commit-sha` when provided). Repository metadata and a full commit SHA are required
 when any test selector is provided.
+
+Metadata overrides do not change the checkout or verify the artifact's provenance.
+Only pass metadata resolved from the build or preview being registered. A trusted
+preview-linking workflow can keep its checkout on the base branch and supply the
+PR's full commit SHA, branch, and repository, without executing PR code on the
+runner. Empty overrides preserve automatic detection.
 
 Use stable YAML keys instead of Autosana UUIDs for code-managed targets. Flow and
 suite keys can be combined with each other, but not with ID or label selectors:
