@@ -228,13 +228,25 @@ if [ -n "${DEPENDENCIES:-}" ]; then
   DEPENDENCIES_JSON=$(jq -c . <<< "$DEPENDENCIES")
 fi
 
-# Capture GitHub environment variables for PR integration
+# Explicit metadata lets trusted workflows register a PR preview without
+# checking out or executing the PR's code on a secrets-bearing runner.
+if [ -n "${AUTOSANA_COMMIT_SHA:-}" ] && [[ ! "$AUTOSANA_COMMIT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+  echo "❌ ERROR: commit-sha must be a full 40-character Git commit SHA."
+  exit 1
+fi
+
+# Capture GitHub environment variables for PR integration.
 # For pull_request events, git rev-parse HEAD returns a merge commit SHA, not the PR head.
 # Extract the PR head SHA from the event payload instead.
 PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "$GITHUB_EVENT_PATH" 2>/dev/null)
-COMMIT_SHA="${PR_HEAD_SHA:-$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")}"
-BRANCH_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-REPO_FULL_NAME="${GITHUB_REPOSITORY:-}"
+COMMIT_SHA="${AUTOSANA_COMMIT_SHA:-${PR_HEAD_SHA:-$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")}}"
+BRANCH_NAME="${AUTOSANA_BRANCH_NAME:-${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}}"
+REPO_FULL_NAME="${AUTOSANA_REPO_FULL_NAME:-${GITHUB_REPOSITORY:-}}"
+
+if [ -n "$REPO_FULL_NAME" ] && [[ ! "$REPO_FULL_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+$ ]]; then
+  echo "❌ ERROR: repo-full-name must use the owner/repo format."
+  exit 1
+fi
 
 echo "📦 Git Metadata (for PR integration):"
 echo "   COMMIT_SHA: ${COMMIT_SHA:-not set}"
@@ -243,15 +255,21 @@ echo "   REPO_FULL_NAME: ${REPO_FULL_NAME:-not set}"
 echo ""
 
 # Direct test selection is commit-scoped. Upload-only runs retain their existing
-# behavior, but a selected run must identify the exact checked-out revision.
+# behavior, but a selected run must identify the exact target revision.
 if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$SUITE_KEYS" ] || [ -n "$FLOW_KEYS" ] || [ -n "$LABELS" ]; then
   if [[ ! "$COMMIT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
     echo "❌ ERROR: Direct test runs require a full Git commit SHA."
-    echo "   Checked-out commit: ${COMMIT_SHA:-not set}"
+    echo "   Resolved commit: ${COMMIT_SHA:-not set}"
     exit 1
   fi
   if [ -z "$REPO_FULL_NAME" ]; then
-    echo "❌ ERROR: Direct test runs require GITHUB_REPOSITORY."
+    echo "❌ ERROR: Direct test runs require GITHUB_REPOSITORY or repo-full-name."
+    exit 1
+  fi
+  if [ -z "${GITHUB_REPOSITORY:-}" ] || [ "$REPO_FULL_NAME" != "$GITHUB_REPOSITORY" ]; then
+    echo "❌ ERROR: Selected runs cannot use repo-full-name from a different repository."
+    echo "   Run repository: ${GITHUB_REPOSITORY:-not set}"
+    echo "   Metadata repository: $REPO_FULL_NAME"
     exit 1
   fi
 fi
