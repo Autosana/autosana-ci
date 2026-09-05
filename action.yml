@@ -48,7 +48,7 @@ inputs:
     description: "Branch associated with this build. Defaults to GitHub's head branch or ref name."
     required: false
   repo-full-name:
-    description: "Repository associated with this build and selected tests (owner/repo). Defaults to GITHUB_REPOSITORY."
+    description: "Repository associated with this build and selected tests (owner/repo). Defaults to GITHUB_REPOSITORY; must match it when selectors are present."
     required: false
   name:
     description: "Display name for your app (optional, will update if app already exists)"

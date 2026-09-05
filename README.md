@@ -89,7 +89,10 @@ Metadata overrides do not change the checkout or verify the artifact's provenanc
 Only pass metadata resolved from the build or preview being registered. A trusted
 preview-linking workflow can keep its checkout on the base branch and supply the
 PR's full commit SHA, branch, and repository, without executing PR code on the
-runner. Empty overrides preserve automatic detection.
+runner. Empty overrides preserve automatic detection. When selectors are present,
+`repo-full-name` must match `GITHUB_REPOSITORY`; secret-bearing workflows must not
+run tests for fork repositories. Upload-only registration can still preserve a
+different build repository's metadata.
 
 Use stable YAML keys instead of Autosana UUIDs for code-managed targets. Flow and
 suite keys can be combined with each other, but not with ID or label selectors:

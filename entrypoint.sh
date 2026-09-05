@@ -243,6 +243,11 @@ COMMIT_SHA="${AUTOSANA_COMMIT_SHA:-${PR_HEAD_SHA:-$(git rev-parse HEAD 2>/dev/nu
 BRANCH_NAME="${AUTOSANA_BRANCH_NAME:-${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}}"
 REPO_FULL_NAME="${AUTOSANA_REPO_FULL_NAME:-${GITHUB_REPOSITORY:-}}"
 
+if [ -n "$REPO_FULL_NAME" ] && [[ ! "$REPO_FULL_NAME" =~ ^[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9._-]+$ ]]; then
+  echo "❌ ERROR: repo-full-name must use the owner/repo format."
+  exit 1
+fi
+
 echo "📦 Git Metadata (for PR integration):"
 echo "   COMMIT_SHA: ${COMMIT_SHA:-not set}"
 echo "   BRANCH_NAME: ${BRANCH_NAME:-not set}"
@@ -259,6 +264,12 @@ if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$SUITE_KEYS" ] || [ -n "$F
   fi
   if [ -z "$REPO_FULL_NAME" ]; then
     echo "❌ ERROR: Direct test runs require GITHUB_REPOSITORY or repo-full-name."
+    exit 1
+  fi
+  if [ -z "${GITHUB_REPOSITORY:-}" ] || [ "$REPO_FULL_NAME" != "$GITHUB_REPOSITORY" ]; then
+    echo "❌ ERROR: Selected runs cannot use repo-full-name from a different repository."
+    echo "   Run repository: ${GITHUB_REPOSITORY:-not set}"
+    echo "   Metadata repository: $REPO_FULL_NAME"
     exit 1
   fi
 fi

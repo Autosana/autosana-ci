@@ -41,6 +41,7 @@ setup() {
     export AUTOSANA_COMMIT_SHA="c8f3a5530b020bec1ccd61cea491c4e67edafd94"
     export AUTOSANA_BRANCH_NAME="feature/physical-device-gate"
     export AUTOSANA_REPO_FULL_NAME="Autosana/AutosanaDashboard"
+    export GITHUB_REPOSITORY="$AUTOSANA_REPO_FULL_NAME"
     export LABELS="smoke" GITHUB_REF_NAME="staging"
     # An unrelated event head must not override the explicitly selected PR.
     export GITHUB_EVENT_PATH="$PROJECT_ROOT/tests/fixtures/github_event_pr.json"
@@ -63,6 +64,7 @@ setup() {
     export AUTOSANA_COMMIT_SHA="c8f3a5530b020bec1ccd61cea491c4e67edafd94"
     export AUTOSANA_BRANCH_NAME='feature/quoted-"branch-$(false)'
     export AUTOSANA_REPO_FULL_NAME="Autosana/Mobile"
+    export GITHUB_REPOSITORY="$AUTOSANA_REPO_FULL_NAME"
     export FLOW_KEYS="auth/login"
     export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/requests"
 
@@ -104,4 +106,44 @@ setup() {
         [ ! -e "$MOCK_CURL_CAPTURE_DIR/UPLOAD_WEB.json" ]
         [ ! -e "$MOCK_CURL_CAPTURE_DIR/START_UPLOAD.json" ]
     done
+}
+
+@test "selected runs reject repository metadata for a fork before upload" {
+    export AUTOSANA_COMMIT_SHA="c8f3a5530b020bec1ccd61cea491c4e67edafd94"
+    export AUTOSANA_REPO_FULL_NAME="contributor/fork"
+    export FLOW_KEYS="auth/login"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/requests"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "Selected runs cannot use repo-full-name from a different repository"
+    [ ! -e "$MOCK_CURL_CAPTURE_DIR/CONFIRM_UPLOAD.json" ]
+    [ ! -e "$MOCK_CURL_CAPTURE_DIR/UPLOAD_WEB.json" ]
+    [ ! -e "$MOCK_CURL_CAPTURE_DIR/START_UPLOAD.json" ]
+}
+
+@test "invalid explicit repository metadata is rejected before upload" {
+    export AUTOSANA_REPO_FULL_NAME="not-an-owner-repo"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/requests"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "repo-full-name must use the owner/repo format"
+    [ ! -e "$MOCK_CURL_CAPTURE_DIR/CONFIRM_UPLOAD.json" ]
+    [ ! -e "$MOCK_CURL_CAPTURE_DIR/UPLOAD_WEB.json" ]
+    [ ! -e "$MOCK_CURL_CAPTURE_DIR/START_UPLOAD.json" ]
+}
+
+@test "upload-only registration preserves valid metadata for another repository" {
+    export AUTOSANA_REPO_FULL_NAME="example/preview-app"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/requests"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.repo_full_name == env.AUTOSANA_REPO_FULL_NAME' \
+        "$MOCK_CURL_CAPTURE_DIR/CONFIRM_UPLOAD.json"
+    assert_success
 }

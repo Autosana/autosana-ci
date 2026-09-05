@@ -48,17 +48,17 @@ jobs:
           url: https://preview.example.com
           commit-sha: c8f3a5530b020bec1ccd61cea491c4e67edafd94
           branch-name: feature/metadata-contract
-          repo-full-name: example/preview-app
+          repo-full-name: ${{ github.repository }}
           labels: smoke
 
       - name: Verify action inputs reached registration and test dispatch
         run: |
           jq -e '.commit_sha == "c8f3a5530b020bec1ccd61cea491c4e67edafd94"
             and .branch_name == "feature/metadata-contract"
-            and .repo_full_name == "example/preview-app"' \
+            and .repo_full_name == "Autosana/autosana-ci"' \
             "$RUNNER_TEMP/metadata-requests/UPLOAD_WEB.json"
           jq -e '.ref == "c8f3a5530b020bec1ccd61cea491c4e67edafd94"
-            and .repo_full_name == "example/preview-app"
+            and .repo_full_name == "Autosana/autosana-ci"
             and .labels == ["smoke"]' \
             "$RUNNER_TEMP/metadata-requests/RUN_FLOWS.json"
 
