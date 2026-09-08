@@ -232,9 +232,9 @@ fi
 # For pull_request events, git rev-parse HEAD returns a merge commit SHA, not the PR head.
 # Extract the PR head SHA from the event payload instead.
 PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "$GITHUB_EVENT_PATH" 2>/dev/null)
-COMMIT_SHA="${PR_HEAD_SHA:-$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")}"
-BRANCH_NAME="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
-REPO_FULL_NAME="${GITHUB_REPOSITORY:-}"
+COMMIT_SHA="${INPUT_COMMIT_SHA:-${PR_HEAD_SHA:-$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")}}"
+BRANCH_NAME="${INPUT_BRANCH_NAME:-${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}}"
+REPO_FULL_NAME="${INPUT_REPO_FULL_NAME:-${GITHUB_REPOSITORY:-}}"
 
 echo "📦 Git Metadata (for PR integration):"
 echo "   COMMIT_SHA: ${COMMIT_SHA:-not set}"
@@ -331,6 +331,8 @@ if [ "$PLATFORM" = "web" ]; then
     echo "   Error detail: $ERROR_DETAIL"
     exit 1
   fi
+
+  REGISTERED_WEB_BUILD_ID=$(echo "$JSON_RESPONSE" | jq -r '.build_id // empty')
 
   # Success
   echo "🎉 ========================================"
@@ -842,6 +844,7 @@ if [ "$PLATFORM" = "web" ]; then
   # kcov-ignore-start
   RUN_PAYLOAD=$(jq -n \
     --arg app_id "$APP_ID" \
+    --arg app_build_id "${REGISTERED_WEB_BUILD_ID:-}" \
     --arg environment "$ENVIRONMENT" \
     --arg variables "$VARIABLES" \
     --arg web_browser "$WEB_BROWSER" \
@@ -856,6 +859,7 @@ if [ "$PLATFORM" = "web" ]; then
     --argjson labels "$LABELS_JSON" \
     --argjson dependencies "$DEPENDENCIES_JSON" \
     '{app_id: $app_id, repo_full_name: $repo_full_name, ref: $ref}
+     + (if $app_build_id != "" then {app_build_id: $app_build_id} else {} end)
      + (if $key_selector_mode == "true"
         then {flow_keys: $flow_keys, suite_keys: $suite_keys}
         else {flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels} end)

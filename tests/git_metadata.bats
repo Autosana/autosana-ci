@@ -35,3 +35,26 @@ setup() {
     assert_success
     assert_output --partial "BRANCH_NAME: feature/my-branch"
 }
+
+@test "explicit PR metadata overrides the trusted checkout and event" {
+    export INPUT_COMMIT_SHA="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    export INPUT_BRANCH_NAME="feature/actual-pr"
+    export INPUT_REPO_FULL_NAME="Autosana/AutosanaDashboard"
+    export GITHUB_EVENT_PATH="$PROJECT_ROOT/tests/fixtures/github_event_pr.json"
+    export PLATFORM="web" APP_ID="preview" URL="https://preview.example.com"
+    export LABELS="smoke"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "COMMIT_SHA: $INPUT_COMMIT_SHA"
+    assert_output --partial "BRANCH_NAME: $INPUT_BRANCH_NAME"
+    assert_output --partial "REPO_FULL_NAME: $INPUT_REPO_FULL_NAME"
+    assert_output --partial '"ref": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"'
+}
+
+@test "web run pins the registered build despite concurrent preview registrations" {
+    export PLATFORM="web" APP_ID="preview" URL="https://preview.example.com" LABELS="smoke"
+    export MOCK_CURL_BODY_UPLOAD_WEB='{"status":"success","build_id":"12345678-1234-1234-1234-123456789abc"}'
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial '"app_build_id": "12345678-1234-1234-1234-123456789abc"'
+}

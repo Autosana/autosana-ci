@@ -219,3 +219,9 @@ Autosana and run them all by label:
     variables: "TEST_ACCOUNT=qa-smoke,CHECKOUT_VARIANT=control"
     labels: smoke
 ```
+
+### Scheduled workflows and trusted checkouts
+
+Use `commit-sha`, `branch-name`, and `repo-full-name` when the workflow checks out trusted workflow code instead of the PR revision. Explicit inputs override event and checkout metadata. `commit-sha` must be a full 40-character SHA when selecting tests. The action pins web runs to the build returned by registration so concurrent previews cannot change the target.
+
+The action gates its own workflow job. A scheduled workflow that tests another PR must publish a check on that PR's head SHA using `checks: write`; the scheduled job itself belongs to the scheduler's commit.

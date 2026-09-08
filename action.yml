@@ -40,6 +40,16 @@ inputs:
     description: "[Web] URL to test (e.g., Vercel/Netlify preview deployment URL)"
     required: false
 
+  commit-sha:
+    description: "Exact commit to register and test. Overrides event and checkout metadata."
+    required: false
+  branch-name:
+    description: "Branch to register. Overrides GitHub event metadata."
+    required: false
+  repo-full-name:
+    description: "Repository owner/name to register and test. Overrides GITHUB_REPOSITORY."
+    required: false
+
   # Shared optional inputs
   name:
     description: "Display name for your app (optional, will update if app already exists)"
@@ -105,6 +115,10 @@ runs:
         # Web inputs
         APP_ID: ${{ inputs.app-id }}
         URL: ${{ inputs.url }}
+        # Explicit metadata for scheduled workflows that check out trusted code
+        INPUT_COMMIT_SHA: ${{ inputs.commit-sha }}
+        INPUT_BRANCH_NAME: ${{ inputs.branch-name }}
+        INPUT_REPO_FULL_NAME: ${{ inputs.repo-full-name }}
         # Shared
         APP_NAME: ${{ inputs.name }}
         ENVIRONMENT: ${{ inputs.environment }}
