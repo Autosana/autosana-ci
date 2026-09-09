@@ -104,3 +104,10 @@ setup() {
     assert_success
     assert_output --partial "COMMIT_SHA: 0123456789abcdef0123456789abcdef01234567"
 }
+
+@test "missing web build ID warns without breaking older registration responses" {
+    export PLATFORM="web" APP_ID="preview" URL="https://preview.example.com" LABELS="smoke"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "::warning::Registration did not return build_id"
+}

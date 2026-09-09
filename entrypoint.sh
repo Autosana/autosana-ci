@@ -238,12 +238,26 @@ case "${GITHUB_EVENT_NAME:-}" in
     DEPLOYMENT_SHA="${DEPLOYMENT_SHA:-${GITHUB_SHA:-}}"
     ;;
 esac
-COMMIT_SHA="${INPUT_COMMIT_SHA:-${PR_HEAD_SHA:-${DEPLOYMENT_SHA:-$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")}}}"
+if [ -n "${INPUT_COMMIT_SHA:-}" ]; then
+  COMMIT_SHA="$INPUT_COMMIT_SHA"
+  COMMIT_SOURCE="commit-sha input"
+elif [ -n "$PR_HEAD_SHA" ]; then
+  COMMIT_SHA="$PR_HEAD_SHA"
+  COMMIT_SOURCE="pull request payload"
+elif [ -n "$DEPLOYMENT_SHA" ]; then
+  COMMIT_SHA="$DEPLOYMENT_SHA"
+  COMMIT_SOURCE="deployment event"
+elif COMMIT_SHA=$(git rev-parse HEAD 2>/dev/null); then
+  COMMIT_SOURCE="git checkout"
+else
+  COMMIT_SHA="${GITHUB_SHA:-}"
+  COMMIT_SOURCE="GITHUB_SHA fallback"
+fi
 BRANCH_NAME="${INPUT_BRANCH_NAME:-${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}}"
 REPO_FULL_NAME="${INPUT_REPO_FULL_NAME:-${GITHUB_REPOSITORY:-}}"
 
 echo "📦 Git Metadata (for PR integration):"
-echo "   COMMIT_SHA: ${COMMIT_SHA:-not set}"
+echo "   COMMIT_SHA: ${COMMIT_SHA:-not set} (source: $COMMIT_SOURCE)"
 echo "   BRANCH_NAME: ${BRANCH_NAME:-not set}"
 echo "   REPO_FULL_NAME: ${REPO_FULL_NAME:-not set}"
 echo ""
@@ -339,6 +353,11 @@ if [ "$PLATFORM" = "web" ]; then
   fi
 
   REGISTERED_WEB_BUILD_ID=$(echo "$JSON_RESPONSE" | jq -r '.build_id // empty')
+  if [ -z "$REGISTERED_WEB_BUILD_ID" ]; then
+    echo "::warning::Registration did not return build_id; tests will use the app default build."
+  else
+    echo "Tests pinned to registered web build: $REGISTERED_WEB_BUILD_ID"
+  fi
 
   # Success
   echo "🎉 ========================================"
