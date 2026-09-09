@@ -220,8 +220,14 @@ Autosana and run them all by label:
     labels: smoke
 ```
 
-### Scheduled workflows and trusted checkouts
+### Commit detection and trusted checkouts
 
-Use `commit-sha`, `branch-name`, and `repo-full-name` when the workflow checks out trusted workflow code instead of the PR revision. Explicit inputs override event and checkout metadata. `commit-sha` must be a full 40-character SHA when selecting tests. The action pins web runs to the build returned by registration so concurrent previews cannot change the target.
+The action detects the target commit automatically:
+
+- PR events use the PR head SHA.
+- `deployment` and `deployment_status` events use `deployment.sha`, falling back to `GITHUB_SHA` if the payload is unavailable. They do not use the workflow checkout's SHA.
+- Other events retain checkout-based detection, falling back to `GITHUB_SHA` if Git is unavailable.
+
+An explicit `commit-sha` always takes precedence. Use it for manual reruns targeting a different PR, or when you intentionally want to test a different commit from the deployment. Optional `branch-name` and `repo-full-name` inputs override the corresponding GitHub metadata. `commit-sha` must be a full 40-character SHA when selecting tests. The action pins web runs to the build returned by registration so concurrent previews cannot change the target.
 
 The action gates its own workflow job. A scheduled workflow that tests another PR must publish a check on that PR's head SHA using `checks: write`; the scheduled job itself belongs to the scheduler's commit.

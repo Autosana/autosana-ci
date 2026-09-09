@@ -47,6 +47,7 @@ _common_setup() {
     export INPUT_COMMIT_SHA="" INPUT_BRANCH_NAME="" INPUT_REPO_FULL_NAME=""
 
     # GitHub env vars (mocked)
+    export GITHUB_EVENT_NAME="push"
     export GITHUB_EVENT_PATH="$PROJECT_ROOT/tests/fixtures/github_event_push.json"
     export GITHUB_SHA="abc123def456"
     export GITHUB_HEAD_REF=""

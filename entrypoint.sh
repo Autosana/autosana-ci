@@ -228,11 +228,17 @@ if [ -n "${DEPENDENCIES:-}" ]; then
   DEPENDENCIES_JSON=$(jq -c . <<< "$DEPENDENCIES")
 fi
 
-# Capture GitHub environment variables for PR integration
-# For pull_request events, git rev-parse HEAD returns a merge commit SHA, not the PR head.
-# Extract the PR head SHA from the event payload instead.
-PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "$GITHUB_EVENT_PATH" 2>/dev/null)
-COMMIT_SHA="${INPUT_COMMIT_SHA:-${PR_HEAD_SHA:-$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")}}"
+# A deployment can target a different commit from the trusted workflow checkout.
+# Keep checkout-based detection for other events (including intentional custom refs).
+PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "${GITHUB_EVENT_PATH:-}" 2>/dev/null || true)
+DEPLOYMENT_SHA=""
+case "${GITHUB_EVENT_NAME:-}" in
+  deployment|deployment_status)
+    DEPLOYMENT_SHA=$(jq -r '.deployment.sha // empty' "${GITHUB_EVENT_PATH:-}" 2>/dev/null || true)
+    DEPLOYMENT_SHA="${DEPLOYMENT_SHA:-${GITHUB_SHA:-}}"
+    ;;
+esac
+COMMIT_SHA="${INPUT_COMMIT_SHA:-${PR_HEAD_SHA:-${DEPLOYMENT_SHA:-$(git rev-parse HEAD 2>/dev/null || echo "${GITHUB_SHA:-}")}}}"
 BRANCH_NAME="${INPUT_BRANCH_NAME:-${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}}"
 REPO_FULL_NAME="${INPUT_REPO_FULL_NAME:-${GITHUB_REPOSITORY:-}}"
 
@@ -243,11 +249,11 @@ echo "   REPO_FULL_NAME: ${REPO_FULL_NAME:-not set}"
 echo ""
 
 # Direct test selection is commit-scoped. Upload-only runs retain their existing
-# behavior, but a selected run must identify the exact checked-out revision.
+# behavior, but a selected run must identify the exact target revision.
 if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$SUITE_KEYS" ] || [ -n "$FLOW_KEYS" ] || [ -n "$LABELS" ]; then
   if [[ ! "$COMMIT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
     echo "❌ ERROR: Direct test runs require a full Git commit SHA."
-    echo "   Checked-out commit: ${COMMIT_SHA:-not set}"
+    echo "   Target commit: ${COMMIT_SHA:-not set}"
     exit 1
   fi
   if [ -z "$REPO_FULL_NAME" ]; then

@@ -58,3 +58,49 @@ setup() {
     assert_success
     assert_output --partial '"app_build_id": "12345678-1234-1234-1234-123456789abc"'
 }
+
+@test "deployment_status uses deployed SHA instead of trusted checkout" {
+    export GITHUB_EVENT_NAME="deployment_status"
+    export GITHUB_EVENT_PATH="$BATS_TEST_TMPDIR/deployment.json"
+    printf '%s' '{"deployment":{"sha":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}' > "$GITHUB_EVENT_PATH"
+    export PLATFORM="web" APP_ID="preview" URL="https://preview.example.com" LABELS="smoke"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial '"commit_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"'
+    assert_output --partial '"ref": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"'
+}
+
+@test "deployment event falls back to GITHUB_SHA when payload is unavailable" {
+    export GITHUB_EVENT_NAME="deployment"
+    export GITHUB_EVENT_PATH="$BATS_TEST_TMPDIR/missing.json"
+    export GITHUB_SHA="cccccccccccccccccccccccccccccccccccccccc"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "COMMIT_SHA: $GITHUB_SHA"
+}
+
+@test "explicit commit still wins over deployment autodetection" {
+    export GITHUB_EVENT_NAME="deployment_status"
+    export GITHUB_SHA="cccccccccccccccccccccccccccccccccccccccc"
+    export INPUT_COMMIT_SHA="dddddddddddddddddddddddddddddddddddddddd"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "COMMIT_SHA: $INPUT_COMMIT_SHA"
+}
+
+@test "push workflows retain intentional checkout SHA instead of event SHA" {
+    export GITHUB_EVENT_NAME="push"
+    export GITHUB_SHA="cccccccccccccccccccccccccccccccccccccccc"
+    export MOCK_GIT_SHA="eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "COMMIT_SHA: $MOCK_GIT_SHA"
+}
+
+@test "manual workflows retain checkout behavior without an override" {
+    export GITHUB_EVENT_NAME="workflow_dispatch"
+    export GITHUB_SHA="cccccccccccccccccccccccccccccccccccccccc"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "COMMIT_SHA: 0123456789abcdef0123456789abcdef01234567"
+}
