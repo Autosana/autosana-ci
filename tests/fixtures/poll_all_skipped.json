@@ -18,7 +18,8 @@
           "url": "https://app.autosana.ai/runs/run-2",
           "summary": ""
         }
-      ]
+      ],
+      "status": "skipped"
     }
   ],
   "summary": {
@@ -29,6 +30,7 @@
     "failed_flows": 0,
     "error_flows": 0,
     "terminated_flows": 0,
-    "skipped_flows": 2
+    "skipped_flows": 2,
+    "failed_groups": 0
   }
 }

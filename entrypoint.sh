@@ -1122,13 +1122,14 @@ echo ""
 # teardown can fail even when all executed flows passed.
 FAILED_GROUPS=$(echo "$STATUS_RESPONSE" | jq -r '.summary.failed_groups // 0')
 BAD_GROUPS=$(echo "$STATUS_RESPONSE" | jq '[.run_groups[]? | select(.status == "failed" or .status == "error" or .status == "terminated")] | length')
-if [ "$FAILED_GROUPS" -gt 0 ] || [ "$BAD_GROUPS" -gt 0 ]; then
-  echo "❌ Suite execution failed. Check suite setup, teardown, and cancellation results."
+if [ "$FAILED" -gt 0 ] || [ "$ERROR_COUNT" -gt 0 ] || [ "$TERMINATED" -gt 0 ]; then
+  echo "❌ $((FAILED + ERROR_COUNT + TERMINATED)) flow(s) did not pass (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
   exit 1
 fi
 
-if [ "$FAILED" -gt 0 ] || [ "$ERROR_COUNT" -gt 0 ] || [ "$TERMINATED" -gt 0 ]; then
-  echo "❌ $((FAILED + ERROR_COUNT + TERMINATED)) flow(s) did not pass (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
+
+if [ "$FAILED_GROUPS" -gt 0 ] || [ "$BAD_GROUPS" -gt 0 ]; then
+  echo "❌ Suite execution failed. Check suite setup, teardown, and cancellation results."
   exit 1
 fi
 

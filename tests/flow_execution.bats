@@ -855,8 +855,7 @@ setup() {
 
 @test "suite teardown failure fails even when every flow passed" {
     export FLOW_IDS="uuid-1"
-    export MOCK_POLL_RESPONSE_FILE="$BATS_TEST_TMPDIR/teardown.json"
-    jq '.summary.failed_groups = 1 | .summary.passed_groups = 0 | .run_groups[0].status = "error"' "$PROJECT_ROOT/tests/fixtures/poll_all_passed.json" > "$MOCK_POLL_RESPONSE_FILE"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_teardown_failure.json"
     run bash "$ENTRYPOINT"
     assert_failure
     assert_output --partial "Suite execution failed"
@@ -865,8 +864,7 @@ setup() {
 
 @test "setup failure is not mistaken for intentionally skipped flows" {
     export FLOW_IDS="uuid-1"
-    export MOCK_POLL_RESPONSE_FILE="$BATS_TEST_TMPDIR/setup.json"
-    jq '.summary.failed_groups = 1 | .run_groups[0].status = "error"' "$PROJECT_ROOT/tests/fixtures/poll_all_skipped.json" > "$MOCK_POLL_RESPONSE_FILE"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_setup_failure.json"
     run bash "$ENTRYPOINT"
     assert_failure
     assert_output --partial "Suite execution failed"
