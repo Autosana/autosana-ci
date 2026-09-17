@@ -621,7 +621,7 @@ setup() {
     run bash "$ENTRYPOINT"
     assert_success
     assert_output --partial "Skipped: 1"
-    assert_output --partial "All flows passed (1/2)"
+    assert_output --partial "All flows passed (1/1)"
 }
 
 # A real-world failing run usually has multiple buckets populated. Lock in
@@ -851,4 +851,24 @@ setup() {
     assert_success
     # Forwarded as-is; the backend's normalize_web_browser maps to canonical.
     assert_output --partial '"web_browser": "msedge"'
+}
+
+@test "suite teardown failure fails even when every flow passed" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$BATS_TEST_TMPDIR/teardown.json"
+    jq '.summary.failed_groups = 1 | .summary.passed_groups = 0 | .run_groups[0].status = "error"' "$PROJECT_ROOT/tests/fixtures/poll_all_passed.json" > "$MOCK_POLL_RESPONSE_FILE"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Suite execution failed"
+    refute_output --partial "All flows passed"
+}
+
+@test "setup failure is not mistaken for intentionally skipped flows" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$BATS_TEST_TMPDIR/setup.json"
+    jq '.summary.failed_groups = 1 | .run_groups[0].status = "error"' "$PROJECT_ROOT/tests/fixtures/poll_all_skipped.json" > "$MOCK_POLL_RESPONSE_FILE"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Suite execution failed"
+    refute_output --partial "No applicable flows ran"
 }
