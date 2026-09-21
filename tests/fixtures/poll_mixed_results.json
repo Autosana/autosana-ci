@@ -39,17 +39,19 @@
           "url": "https://app.autosana.ai/runs/run-5",
           "summary": ""
         }
-      ]
+      ],
+      "status": "failed"
     }
   ],
   "summary": {
     "total_groups": 1,
     "passed_groups": 0,
-    "total_flows": 5,
+    "total_flows": 4,
     "passed_flows": 1,
     "failed_flows": 1,
     "error_flows": 1,
     "terminated_flows": 1,
-    "skipped_flows": 1
+    "skipped_flows": 1,
+    "failed_groups": 1
   }
 }
