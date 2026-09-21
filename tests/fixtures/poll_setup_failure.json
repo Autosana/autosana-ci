@@ -2,18 +2,18 @@
   "is_complete": true,
   "run_groups": [
     {
-      "name": "iOS-only Suite",
+      "name": "Smoke Tests",
       "runs": [
         {
           "id": "run-1",
-          "name": "iOS Login Flow",
+          "name": "Login Flow",
           "status": "skipped",
           "url": "https://app.autosana.ai/runs/run-1",
           "summary": ""
         },
         {
           "id": "run-2",
-          "name": "iOS Checkout Flow",
+          "name": "Checkout Flow",
           "status": "skipped",
           "url": "https://app.autosana.ai/runs/run-2",
           "summary": ""

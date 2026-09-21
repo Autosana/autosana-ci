@@ -13,7 +13,7 @@
         },
         {
           "id": "run-2",
-          "name": "iOS-only Flow",
+          "name": "Checkout Flow",
           "status": "skipped",
           "url": "https://app.autosana.ai/runs/run-2",
           "summary": ""

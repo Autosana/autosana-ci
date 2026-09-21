@@ -1118,26 +1118,33 @@ echo "   Flows:   $PASSED/$TOTAL passed"
 [ "$SKIPPED" != "0" ] && echo "   Skipped: $SKIPPED"
 echo ""
 
-# API total_flows excludes skipped flows. Group failures also matter: setup or
-# teardown can fail even when all executed flows passed.
-FAILED_GROUPS=$(echo "$STATUS_RESPONSE" | jq -r '.summary.failed_groups // 0')
-BAD_GROUPS=$(echo "$STATUS_RESPONSE" | jq '[.run_groups[]? | select(.status == "failed" or .status == "error" or .status == "terminated")] | length')
+# API totals exclude skips and already fold passing retries into passed_flows.
+# A remaining skip means the requested flow never passed (for example, setup
+# failed). Cleanup errors alone must not fail otherwise successful flows.
 if [ "$FAILED" -gt 0 ] || [ "$ERROR_COUNT" -gt 0 ] || [ "$TERMINATED" -gt 0 ]; then
   echo "❌ $((FAILED + ERROR_COUNT + TERMINATED)) flow(s) did not pass (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
   exit 1
 fi
+if [ "$SKIPPED" -gt 0 ]; then
+  echo "❌ $SKIPPED flow(s) were skipped without a passing retry. Check setup and execution results."
+  exit 1
+fi
 
-
-if [ "$FAILED_GROUPS" -gt 0 ] || [ "$BAD_GROUPS" -gt 0 ]; then
-  echo "❌ Suite execution failed. Check suite setup, teardown, and cancellation results."
+# Check each suite as well: an empty failed setup must not be hidden by another
+# suite's passing flows. An errored suite whose flows all passed may have only
+# failed cleanup, which is allowed. A cancelled suite remains a failure.
+BAD_GROUPS=$(echo "$STATUS_RESPONSE" | jq '[.run_groups[]? | select(
+  .status == "terminated" or
+  ((.status != "passed") and ((.runs | length) == 0)) or
+  any(.runs[]?; .status != "passed")
+)] | length')
+if [ "$BAD_GROUPS" -gt 0 ]; then
+  echo "❌ Suite execution did not complete all requested flows successfully. Check setup and execution results."
   exit 1
 fi
 
 if [ "$TOTAL" -gt 0 ] && [ "$PASSED" -eq "$TOTAL" ]; then
   echo "✅ All flows passed ($PASSED/$TOTAL)."
-  exit 0
-elif [ "$TOTAL" -eq 0 ] && [ "$PASSED" -eq 0 ] && [ "$SKIPPED" -gt 0 ]; then
-  echo "✅ No applicable flows ran (0 passed, $SKIPPED skipped)."
   exit 0
 elif [ "$TOTAL" -eq 0 ] && [ "$PASSED" -eq 0 ]; then
   echo "❌ No flows ran (TOTAL=$TOTAL). Refusing to report success."
