@@ -977,6 +977,11 @@ echo "✅ Triggered $FLOW_RUN_COUNT flow(s)"
 echo "   Batch ID: $BATCH_ID"
 echo ""
 
+# Publish before polling so failed or interrupted tests still expose their batch.
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+  printf 'batch-id=%s\n' "$BATCH_ID" >> "$GITHUB_OUTPUT"
+fi
+
 # Polling configuration
 POLL_INTERVAL=15
 PRINTED_IDS_FILE=$(mktemp)

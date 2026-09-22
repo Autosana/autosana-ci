@@ -53,6 +53,25 @@ setup() {
 
 # --- Flow triggering ---
 
+@test "batch output survives failing tests" {
+    export FLOW_IDS="uuid-1"
+    export GITHUB_OUTPUT="$BATS_TEST_TMPDIR/outputs"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_some_failed.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    run cat "$GITHUB_OUTPUT"
+    assert_output "batch-id=batch-001"
+}
+
+@test "failed dispatch does not publish a batch output" {
+    export FLOW_IDS="uuid-1"
+    export GITHUB_OUTPUT="$BATS_TEST_TMPDIR/outputs"
+    export MOCK_CURL_STATUS_RUN_FLOWS=422
+    run bash "$ENTRYPOINT"
+    assert_failure
+    [ ! -e "$GITHUB_OUTPUT" ]
+}
+
 @test "FLOW_IDS triggers flow execution" {
     export FLOW_IDS="uuid-1,uuid-2"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
