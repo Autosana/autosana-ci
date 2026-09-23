@@ -1,6 +1,41 @@
 #!/bin/bash
 set -e
 
+# Write one concise job summary, including failures before a batch was created.
+SUMMARY_STATUS="Failed"
+SUMMARY_DETAIL="The Action could not complete. See the step logs for details."
+DISPATCH_ERRORS=""
+_write_job_summary() {
+  local exit_status=$?
+  if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+    {
+      printf '### Autosana: %s\n\n' "$SUMMARY_STATUS"
+      printf '%s\n\n' "$SUMMARY_DETAIL"
+      if [ -n "$DISPATCH_ERRORS" ]; then
+        printf 'Some requested tests could not be submitted:\n\n%s\n\n' "$DISPATCH_ERRORS"
+      fi
+      if [ -n "${BATCH_URL:-}" ]; then
+        printf '[View test results](%s)\n\n' "$BATCH_URL"
+      fi
+    } >> "$GITHUB_STEP_SUMMARY" || true
+  fi
+  if [ -n "${PRINTED_IDS_FILE:-}" ]; then
+    rm -f "$PRINTED_IDS_FILE"
+  fi
+  return "$exit_status"
+}
+trap _write_job_summary EXIT
+
+RUN_CHANGED_FLOWS_LOWER=$(echo "${RUN_CHANGED_FLOWS:-true}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+case "$RUN_CHANGED_FLOWS_LOWER" in
+  true|false) ;;
+  *)
+    echo "❌ ERROR: Unsupported 'run-changed-flows' value: '$RUN_CHANGED_FLOWS'"
+    echo "   Allowed: true (default), false"
+    exit 1
+    ;;
+esac
+
 echo "🚀 ========================================"
 echo "🚀 Autosana CI Upload Script Starting"
 echo "🚀 ========================================"
@@ -35,6 +70,11 @@ if [ -n "$FLOW_KEYS" ] || [ -n "$SUITE_KEYS" ]; then
     echo "❌ ERROR: flow-keys and suite-keys cannot be combined with flow-ids, suite-ids, or labels."
     exit 1
   fi
+fi
+
+RUN_TESTS=false
+if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$SUITE_KEYS" ] || [ -n "$FLOW_KEYS" ] || [ -n "$LABELS" ] || { [ "$RUN_CHANGED_FLOWS_LOWER" = "true" ] && [ "$PLATFORM" != "chrome-extension" ]; }; then
+  RUN_TESTS=true
 fi
 
 # Validate platform and check platform-specific inputs
@@ -195,8 +235,8 @@ if [ -n "${DEPENDENCIES:-}" ]; then
     exit 1
   fi
 
-  if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$SUITE_KEYS" ] && [ -z "$FLOW_KEYS" ] && [ -z "$LABELS" ]; then
-    echo "❌ ERROR: 'dependencies' requires a flow, suite, or label selector."
+  if [ "$RUN_TESTS" = "false" ]; then
+    echo "❌ ERROR: 'dependencies' requires a flow, suite, or label selector, or run-changed-flows: true."
     exit 1
   fi
 
@@ -230,6 +270,10 @@ fi
 
 # A deployment can target a different commit from the trusted workflow checkout.
 # Keep checkout-based detection for other events (including intentional custom refs).
+PR_NUMBER=$(jq -r '.pull_request.number // (if .pull_request then .number else null end) // empty' "${GITHUB_EVENT_PATH:-}" 2>/dev/null || true)
+if [[ ! "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
+  PR_NUMBER=""
+fi
 PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "${GITHUB_EVENT_PATH:-}" 2>/dev/null || true)
 DEPLOYMENT_SHA=""
 case "${GITHUB_EVENT_NAME:-}" in
@@ -255,6 +299,13 @@ else
 fi
 BRANCH_NAME="${INPUT_BRANCH_NAME:-${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}}"
 REPO_FULL_NAME="${INPUT_REPO_FULL_NAME:-${GITHUB_REPOSITORY:-}}"
+# An override can target a different PR, even in the same repository. Let the
+# backend resolve that commit instead of reusing the triggering event's number.
+EVENT_REPO_FULL_NAME=$(jq -r '.repository.full_name // empty' "${GITHUB_EVENT_PATH:-}" 2>/dev/null || true)
+EVENT_REPO_FULL_NAME="${EVENT_REPO_FULL_NAME:-${GITHUB_REPOSITORY:-}}"
+if [ "$COMMIT_SHA" != "$PR_HEAD_SHA" ] || [ "$REPO_FULL_NAME" != "$EVENT_REPO_FULL_NAME" ]; then
+  PR_NUMBER=""
+fi
 
 echo "📦 Git Metadata (for PR integration):"
 echo "   COMMIT_SHA: ${COMMIT_SHA:-not set} (source: $COMMIT_SOURCE)"
@@ -262,9 +313,8 @@ echo "   BRANCH_NAME: ${BRANCH_NAME:-not set}"
 echo "   REPO_FULL_NAME: ${REPO_FULL_NAME:-not set}"
 echo ""
 
-# Direct test selection is commit-scoped. Upload-only runs retain their existing
-# behavior, but a selected run must identify the exact target revision.
-if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$SUITE_KEYS" ] || [ -n "$FLOW_KEYS" ] || [ -n "$LABELS" ]; then
+# Test selection is commit-scoped, including automatically changed flows.
+if [ "$RUN_TESTS" = "true" ]; then
   if [[ ! "$COMMIT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
     echo "❌ ERROR: Direct test runs require a full Git commit SHA."
     echo "   Target commit: ${COMMIT_SHA:-not set}"
@@ -352,11 +402,11 @@ if [ "$PLATFORM" = "web" ]; then
     exit 1
   fi
 
-  REGISTERED_WEB_BUILD_ID=$(echo "$JSON_RESPONSE" | jq -r '.build_id // empty')
-  if [ -z "$REGISTERED_WEB_BUILD_ID" ]; then
+  REGISTERED_BUILD_ID=$(echo "$JSON_RESPONSE" | jq -r '.build_id | select(. != null and . != "null")')
+  if [ -z "$REGISTERED_BUILD_ID" ]; then
     echo "::warning::Registration did not return build_id; tests will use the app default build."
   else
-    echo "Tests pinned to registered web build: $REGISTERED_WEB_BUILD_ID"
+    echo "Tests pinned to registered web build: $REGISTERED_BUILD_ID"
   fi
 
   # Success
@@ -670,6 +720,8 @@ if echo "$CONFIRM_JSON_RESPONSE" | jq -e '.detail' > /dev/null 2>&1; then
   exit 1
 fi
 
+REGISTERED_BUILD_ID=$(echo "$CONFIRM_JSON_RESPONSE" | jq -r '.build_id | select(. != null and . != "null")')
+
 # Final success message
 echo "🎉 ========================================"
 echo "🎉 Upload completed successfully!"
@@ -690,10 +742,12 @@ echo "✅ Upload complete."
 fi
 
 # ============================================================
-# FLOW EXECUTION (optional — runs when an ID, key, or label selector is provided)
+# FLOW EXECUTION (changed flows and/or explicit selectors)
 # ============================================================
 
-if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$SUITE_KEYS" ] && [ -z "$FLOW_KEYS" ] && [ -z "$LABELS" ]; then
+if [ "$RUN_TESTS" = "false" ]; then
+  SUMMARY_STATUS="Uploaded"
+  SUMMARY_DETAIL="Build uploaded. No tests were requested."
   exit 0
 fi
 
@@ -869,7 +923,6 @@ if [ "$PLATFORM" = "web" ]; then
   # kcov-ignore-start
   RUN_PAYLOAD=$(jq -n \
     --arg app_id "$APP_ID" \
-    --arg app_build_id "${REGISTERED_WEB_BUILD_ID:-}" \
     --arg environment "$ENVIRONMENT" \
     --arg variables "$VARIABLES" \
     --arg web_browser "$WEB_BROWSER" \
@@ -884,7 +937,6 @@ if [ "$PLATFORM" = "web" ]; then
     --argjson labels "$LABELS_JSON" \
     --argjson dependencies "$DEPENDENCIES_JSON" \
     '{app_id: $app_id, repo_full_name: $repo_full_name, ref: $ref}
-     + (if $app_build_id != "" then {app_build_id: $app_build_id} else {} end)
      + (if $key_selector_mode == "true"
         then {flow_keys: $flow_keys, suite_keys: $suite_keys}
         else {flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels} end)
@@ -929,6 +981,18 @@ else
   # kcov-ignore-end
 fi
 
+RUN_PAYLOAD=$(jq \
+  --argjson run_changed_flows "$RUN_CHANGED_FLOWS_LOWER" \
+  --arg pr_number "$PR_NUMBER" \
+  --arg app_build_id "${REGISTERED_BUILD_ID:-}" \
+  --arg workflow_run_id "${GITHUB_RUN_ID:-}" \
+  --arg workflow_run_attempt "${GITHUB_RUN_ATTEMPT:-}" \
+  --arg job "${GITHUB_JOB:-}" \
+  '. + {run_changed_flows: $run_changed_flows, report_to_github: true,
+         ci: {workflow_run_id: $workflow_run_id, workflow_run_attempt: $workflow_run_attempt, job: $job}}
+     + (if $pr_number != "" then {pr_number: ($pr_number | tonumber)} else {} end)
+     + (if $app_build_id != "" then {app_build_id: $app_build_id} else {} end)' <<< "$RUN_PAYLOAD")
+
 echo "🔄 Triggering flows..."
 echo "   API Endpoint: $API_BASE_URL/api/v1/flows/run"
 echo "   Request Payload:"
@@ -964,6 +1028,21 @@ if ! echo "$JSON_RESPONSE" | jq empty 2>/dev/null; then
   exit 1
 fi
 
+DISPATCH_ERROR_COUNT=$(echo "$JSON_RESPONSE" | jq '(.errors // []) | length')
+if [ "$DISPATCH_ERROR_COUNT" -gt 0 ]; then
+  DISPATCH_ERRORS=$(echo "$JSON_RESPONSE" | jq -r '.errors[] | "- " + (if type == "string" then . else tojson end)')
+  echo "❌ Some requested tests could not be submitted:"
+  printf '%s\n' "$DISPATCH_ERRORS"
+fi
+
+if [ "$DISPATCH_ERROR_COUNT" -eq 0 ] && echo "$JSON_RESPONSE" | jq -e '.skipped == true and .flow_run_count == 0 and .batch_id == null' >/dev/null; then
+  SUMMARY_STATUS="Skipped"
+  SUMMARY_DETAIL=$(echo "$JSON_RESPONSE" | jq -r '.reason // "No changed flows to run."')
+  echo "✅ $SUMMARY_DETAIL"
+  exit 0
+fi
+
+BATCH_URL=$(echo "$JSON_RESPONSE" | jq -r '.batch_url // empty')
 BATCH_ID=$(echo "$JSON_RESPONSE" | jq -r '.batch_id')
 FLOW_RUN_COUNT=$(echo "$JSON_RESPONSE" | jq -r '.flow_run_count')
 
@@ -973,19 +1052,29 @@ if [ -z "$BATCH_ID" ] || [ "$BATCH_ID" = "null" ]; then
   exit 1
 fi
 
-echo "✅ Triggered $FLOW_RUN_COUNT flow(s)"
-echo "   Batch ID: $BATCH_ID"
-echo ""
-
 # Publish before polling so failed or interrupted tests still expose their batch.
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
   printf 'batch-id=%s\n' "$BATCH_ID" >> "$GITHUB_OUTPUT"
+  if [ -n "$BATCH_URL" ]; then
+    printf 'batch-url=%s\n' "$BATCH_URL" >> "$GITHUB_OUTPUT"
+  fi
+fi
+SUMMARY_DETAIL="Tests were submitted, but the Action could not retrieve their final result."
+echo "✅ Triggered $FLOW_RUN_COUNT flow(s)"
+echo "   Batch ID: $BATCH_ID"
+if [ -n "$BATCH_URL" ]; then
+  echo "   Results: $BATCH_URL"
+fi
+echo ""
+
+if [ "$WAIT_LOWER" = "false" ] && [ "$DISPATCH_ERROR_COUNT" -gt 0 ]; then
+  SUMMARY_DETAIL="$FLOW_RUN_COUNT flow(s) submitted, but $DISPATCH_ERROR_COUNT submission(s) failed. This job did not wait for test results."
+  exit 1
 fi
 
 # Polling configuration
 POLL_INTERVAL=15
 PRINTED_IDS_FILE=$(mktemp)
-trap "rm -f $PRINTED_IDS_FILE" EXIT
 
 # Initial poll to show all flow links upfront
 sleep 2
@@ -1017,6 +1106,8 @@ fi
 # Fire-and-forget: flows are triggered and running on Autosana. Don't block
 # the CI job on results — exit 0 now.
 if [ "$WAIT_LOWER" = "false" ]; then
+  SUMMARY_STATUS="Submitted"
+  SUMMARY_DETAIL="$FLOW_RUN_COUNT flow(s) submitted. This job did not wait for test results."
   echo "🏃 Not waiting for results (wait: false)."
   # Only point at "the links above" when we actually printed them. The
   # initial status GET is best-effort (it can fail on a transient blip),
@@ -1123,6 +1214,12 @@ echo "   Flows:   $PASSED/$TOTAL passed"
 [ "$SKIPPED" != "0" ] && echo "   Skipped: $SKIPPED"
 echo ""
 
+SUMMARY_DETAIL="$PASSED/$TOTAL passed; $FAILED failed; $ERROR_COUNT errors; $TERMINATED terminated; $SKIPPED skipped."
+if [ "$DISPATCH_ERROR_COUNT" -gt 0 ]; then
+  echo "❌ $DISPATCH_ERROR_COUNT requested test submission(s) failed."
+  exit 1
+fi
+
 # API totals exclude skips and already fold passing retries into passed_flows.
 # A remaining skip means the requested flow never passed (for example, setup
 # failed). Cleanup errors alone must not fail otherwise successful flows.
@@ -1149,6 +1246,7 @@ if [ "$BAD_GROUPS" -gt 0 ]; then
 fi
 
 if [ "$TOTAL" -gt 0 ] && [ "$PASSED" -eq "$TOTAL" ]; then
+  SUMMARY_STATUS="Passed"
   echo "✅ All flows passed ($PASSED/$TOTAL)."
   exit 0
 elif [ "$TOTAL" -eq 0 ] && [ "$PASSED" -eq 0 ]; then
