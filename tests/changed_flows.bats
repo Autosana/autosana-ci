@@ -15,7 +15,7 @@ setup() {
     export MOCK_CURL_BODY_CONFIRM_UPLOAD='{"status":"confirmed","app_id":"app-123","build_id":"mobile-build"}'
     run bash "$ENTRYPOINT"
     assert_success
-    run jq -e '.run_changed_flows == true and .app_build_id == "mobile-build" and .report_to_github == true and .ci == {workflow_run_id:"12345",workflow_run_attempt:"2",job:"test-app",publish_check:false}' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    run jq -e '.run_changed_flows == true and .app_build_id == "mobile-build" and .report_to_github == true and .ci == {workflow_run_id:"12345",workflow_run_attempt:"2",job:"test-app"}' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
     assert_success
 }
 
@@ -83,7 +83,6 @@ setup() {
     export MOCK_CURL_BODY_RUN_FLOWS='{"batch_id":"batch-001","batch_url":"https://app.autosana.ai/batches/batch-001","flow_run_count":2}'
     run bash "$ENTRYPOINT"
     assert_success
-    jq -e '.ci.publish_check == true' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
     grep -q 'Submitted' "$GITHUB_STEP_SUMMARY"
     ! grep -qi 'passed' "$GITHUB_STEP_SUMMARY"
     grep -q 'https://app.autosana.ai/batches/batch-001' "$GITHUB_STEP_SUMMARY"

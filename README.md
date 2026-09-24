@@ -266,11 +266,10 @@ If Autosana submits only part of the requested selection, the Action reports the
 submission errors and fails, even if every submitted test passes. With
 `wait: false`, a partial submission fails immediately.
 
-With the default `wait: true`, the workflow job is the test check. The connected
-GitHub App updates one PR comment with failures, videos, and a run link, without
-creating another check. With `wait: false`, Autosana creates a separate check to
-report the eventual result after the workflow job finishes. Both modes support
-`run-changed-flows: false`.
+The action gates its own workflow job. Autosana reports results on the tested
+commit and associated pull request through the connected GitHub App, including
+runs with `run-changed-flows: false`. The workflow does not need to publish its
+own check.
 
 Every step writes a GitHub job summary with the outcome and a link to batch
 results when tests were submitted. With `wait: false`, the summary says

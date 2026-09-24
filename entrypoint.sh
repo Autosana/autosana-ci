@@ -988,9 +988,8 @@ RUN_PAYLOAD=$(jq \
   --arg workflow_run_id "${GITHUB_RUN_ID:-}" \
   --arg workflow_run_attempt "${GITHUB_RUN_ATTEMPT:-}" \
   --arg job "${GITHUB_JOB:-}" \
-  --arg wait "$WAIT_LOWER" \
   '. + {run_changed_flows: $run_changed_flows, report_to_github: true,
-         ci: {workflow_run_id: $workflow_run_id, workflow_run_attempt: $workflow_run_attempt, job: $job, publish_check: ($wait == "false")}}
+         ci: {workflow_run_id: $workflow_run_id, workflow_run_attempt: $workflow_run_attempt, job: $job}}
      + (if $pr_number != "" then {pr_number: ($pr_number | tonumber)} else {} end)
      + (if $app_build_id != "" then {app_build_id: $app_build_id} else {} end)' <<< "$RUN_PAYLOAD")
 
