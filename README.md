@@ -1,6 +1,17 @@
 # Autosana CI/CD Github Action
 
-CI integration to upload new builds and trigger flows from GitHub workflows.
+CI integration to upload new builds and run tests from GitHub workflows.
+
+By default, web and mobile steps also run code-managed flows added or edited in
+the associated pull request. Explicit flow, suite, and label selections are
+combined with changed flows in one batch, without duplicate runs. Set
+`run-changed-flows: false` to run only your explicit selections, or upload only
+when none are provided. Chrome extension steps only upload builds.
+
+PR events identify the pull request directly. For push and deployment events,
+Autosana finds an open pull request associated with the exact target commit.
+With no associated PR or no changed flows, the changed-flow selection is a
+successful no-op; explicit selections still run and invalid selectors still fail.
 
 See the [Autosana GitHub Action guide](https://docs.autosana.ai/ci-cd-integration)
 for setup instructions and complete workflow examples.
@@ -11,6 +22,8 @@ for setup instructions and complete workflow examples.
 - uses: autosana/autosana-ci@main
   with:
     api-key: ${{ secrets.AUTOSANA_KEY }}
+    # Also run flows added or edited in this pull request.
+    run-changed-flows: true
     platform: android
     bundle-id: com.example.app
     build-path: build/app/outputs/flutter-apk/app-release.apk
@@ -23,6 +36,8 @@ for setup instructions and complete workflow examples.
 - uses: autosana/autosana-ci@main
   with:
     api-key: ${{ secrets.AUTOSANA_KEY }}
+    # Also run flows added or edited in this pull request.
+    run-changed-flows: true
     platform: ios
     bundle-id: com.example.app
     build-path: build/MyApp.app.zip
@@ -31,6 +46,8 @@ for setup instructions and complete workflow examples.
 - uses: autosana/autosana-ci@main
   with:
     api-key: ${{ secrets.AUTOSANA_KEY }}
+    # Also run flows added or edited in this pull request.
+    run-changed-flows: true
     platform: ios
     bundle-id: com.example.app
     build-path: build/MyApp.ipa
@@ -51,6 +68,8 @@ disable remapping for the app.
 - uses: autosana/autosana-ci@main
   with:
     api-key: ${{ secrets.AUTOSANA_KEY }}
+    # Also run flows added or edited in this pull request.
+    run-changed-flows: true
     platform: web
     app-id: my-web-app
     url: https://preview.example.com
@@ -64,14 +83,15 @@ Shared optional inputs:
 - `environment`: Environment name such as `staging` or `production`. Chrome extensions are organization-wide and ignore this input.
 - `api-url`: Override the API base URL. Defaults to `https://backend.autosana.ai`
 - `variables`: Key-value variables exposed to flow instructions via `${env:KEY}`. Use `KEY1=VALUE1,KEY2=VALUE2`.
+- `run-changed-flows`: Also run code-managed flows added or edited in the associated PR. Defaults to `true`. Ignored for Chrome extension uploads.
 - `suite-ids`: Comma-separated suite UUIDs to run after a web or mobile upload
 - `flow-ids`: Comma-separated flow UUIDs to run after a web or mobile upload
 - `suite-keys`: Comma-separated code-managed suite keys to run from the checked-out commit
 - `flow-keys`: Comma-separated code-managed flow keys to run from the checked-out commit
 - `labels`: Comma-separated label names to run after a web or mobile upload (e.g. `smoke` or `smoke,regression`). Runs the union of every suite and flow carrying any of the given labels, so you can replace long `flow-ids` lists with a single label. Combine with `suite-ids`/`flow-ids` to add to the selection. If no suite or flow matches, the action fails.
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
-- `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires a flow, suite, or label selector. Currently unsupported with `suite-keys`.
-- `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when any flow, suite, or label selector triggers tests.
+- `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires `run-changed-flows: true` or a flow, suite, or label selector. Currently unsupported with `suite-keys`.
+- `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies to changed flows and explicit selections.
 - `enable-ios-keychain-access-group-remapping`: iOS `.ipa` only. Persist whether future IPA uploads should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit it to inherit the app's saved preference.
 - `physical-device`: Single-device mobile runs only. Set to `true` to run on real hardware. Defaults to `false`.
 - `device-model`: Single-device mobile runs only. Model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`.
@@ -80,7 +100,7 @@ Shared optional inputs:
 
 Direct test runs resolve code-managed flows, suites, and labels from the exact
 checked-out commit. GitHub repository metadata and a full commit SHA are required
-when any test selector is provided.
+when changed flows are enabled or any test selector is provided.
 
 Use stable YAML keys instead of Autosana UUIDs for code-managed targets. Flow and
 suite keys can be combined with each other, but not with ID or label selectors:
@@ -89,6 +109,8 @@ suite keys can be combined with each other, but not with ID or label selectors:
 - uses: autosana/autosana-ci@main
   with:
     api-key: ${{ secrets.AUTOSANA_KEY }}
+    # Also run flows added or edited in this pull request.
+    run-changed-flows: true
     platform: android
     bundle-id: com.example.app
     build-path: build/app-release.apk
@@ -96,13 +118,15 @@ suite keys can be combined with each other, but not with ID or label selectors:
     suite-keys: "smoke"
 ```
 
-Device inputs apply when any flow, suite, or label selector triggers a run. Use
+Device inputs apply to changed flows and explicit selections. Use
 `latest` to make rolling model and OS selection explicit in checked-in workflows:
 
 ```yaml
 - uses: autosana/autosana-ci@main
   with:
     api-key: ${{ secrets.AUTOSANA_KEY }}
+    # Also run flows added or edited in this pull request.
+    run-changed-flows: true
     platform: android
     bundle-id: com.example.app
     build-path: build/app-release.apk
@@ -119,6 +143,8 @@ keep that dimension rolling. To pin both the model and OS:
 - uses: autosana/autosana-ci@main
   with:
     api-key: ${{ secrets.AUTOSANA_KEY }}
+    # Also run flows added or edited in this pull request.
+    run-changed-flows: true
     platform: android
     bundle-id: com.example.app
     build-path: build/app-release.apk
@@ -139,6 +165,8 @@ Do not combine `devices` with the single-device selection inputs.
 - uses: autosana/autosana-ci@main
   with:
     api-key: ${{ secrets.AUTOSANA_KEY }}
+    # Also run flows added or edited in this pull request.
+    run-changed-flows: true
     platform: ios
     bundle-id: com.example.app
     build-path: build/MyApp.ipa
@@ -156,12 +184,14 @@ API.
 
 ### Fire-and-forget runs
 
-By default, when you pass a flow, suite, or label selector, the action waits for the flows to finish so the job's exit code reflects the test result. To instead trigger the runs and let CI move on while tests execute on Autosana, set `wait: false`:
+By default, the action waits for all selected flows to finish so the job's exit code reflects the test result. To instead trigger the runs and let CI move on while tests execute on Autosana, set `wait: false`:
 
 ```yaml
 - uses: autosana/autosana-ci@main
   with:
     api-key: ${{ secrets.AUTOSANA_KEY }}
+    # Also run flows added or edited in this pull request.
+    run-changed-flows: true
     platform: ios
     bundle-id: com.example.app
     build-path: ./build/MyApp.app.zip
@@ -211,6 +241,8 @@ Autosana and run them all by label:
 - uses: autosana/autosana-ci@main
   with:
     api-key: ${{ secrets.AUTOSANA_KEY }}
+    # Also run flows added or edited in this pull request.
+    run-changed-flows: true
     platform: android
     bundle-id: com.example.app
     build-path: build/app/outputs/flutter-apk/app-release.apk
@@ -228,6 +260,19 @@ The action detects the target commit automatically:
 - `deployment` and `deployment_status` events use `deployment.sha`, falling back to `GITHUB_SHA` if the payload is unavailable. They do not use the workflow checkout's SHA.
 - Other events retain checkout-based detection, falling back to `GITHUB_SHA` if Git is unavailable.
 
-An explicit `commit-sha` always takes precedence. Use it for manual reruns targeting a different PR, or when you intentionally want to test a different commit from the deployment. Optional `branch-name` and `repo-full-name` inputs override the corresponding GitHub metadata. `commit-sha` must be a full 40-character SHA when selecting tests. The action pins web runs to the build returned by registration so concurrent previews cannot change the target.
+An explicit `commit-sha` always takes precedence. Use it for manual reruns targeting a different PR, or when you intentionally want to test a different commit from the deployment. Optional `branch-name` and `repo-full-name` inputs override the corresponding GitHub metadata. `commit-sha` must be a full 40-character SHA when running tests. The action pins web and mobile runs to the build returned by upload so concurrent builds cannot change the target.
 
-The action gates its own workflow job. A scheduled workflow that tests another PR must publish a check on that PR's head SHA using `checks: write`; the scheduled job itself belongs to the scheduler's commit.
+If Autosana submits only part of the requested selection, the Action reports the
+submission errors and fails, even if every submitted test passes. With
+`wait: false`, a partial submission fails immediately.
+
+The action gates its own workflow job. Autosana reports results on the tested
+commit and associated pull request through the connected GitHub App, including
+runs with `run-changed-flows: false`. The workflow does not need to publish its
+own check.
+
+Every step writes a GitHub job summary with the outcome and a link to batch
+results when tests were submitted. With `wait: false`, the summary says
+**Submitted**; a successful Action step does not mean the tests passed. The
+`batch-id` and `batch-url` outputs are available for later workflow steps when a
+batch is created. No-op and upload-only steps do not create a batch.

@@ -69,6 +69,10 @@ inputs:
     required: false
 
   # Flow execution inputs (optional for web/mobile; unsupported for chrome-extension uploads)
+  run-changed-flows:
+    description: "Also run code-managed flows added or edited in the associated pull request. Ignored for Chrome extension uploads."
+    required: false
+    default: "true"
   suite-ids:
     description: "Comma-separated suite UUIDs to run (e.g., 'uuid1,uuid2'). Not supported for Chrome extension uploads; trigger extension tests from a separate web Action step."
     required: false
@@ -91,13 +95,16 @@ inputs:
     description: "[Web runs only] JSON array overriding the app's default extension loadout for this run. Omit to inherit defaults; use [] for none; entries may be app UUID strings or {\"app_id\":\"...\",\"app_build_id\":\"...\"} pins. Not supported with suite-keys, mobile, or Chrome extension uploads."
     required: false
   wait:
-    description: "Wait for triggered flows to finish and gate the job on their result (default: true). Set to 'false' to trigger the flows, print their run links, and exit immediately without blocking CI. Applies when an ID, key, or label selector triggers tests."
+    description: "Wait for triggered flows to finish and gate the job on their result (default: true). Set to 'false' to trigger the flows, print their run links, and exit immediately without blocking CI. Applies to changed flows and explicit selectors."
     required: false
     default: "true"
 outputs:
   batch-id:
     description: "ID of the triggered test batch. Available even when tests fail."
     value: ${{ steps.run.outputs.batch-id }}
+  batch-url:
+    description: "Link to Autosana test results, when tests were submitted"
+    value: ${{ steps.run.outputs.batch-url }}
 runs:
   using: "composite"
   steps:
@@ -131,6 +138,7 @@ runs:
         # Build variables
         VARIABLES: ${{ inputs.variables }}
         # Flow execution
+        RUN_CHANGED_FLOWS: ${{ inputs.run-changed-flows }}
         SUITE_IDS: ${{ inputs.suite-ids }}
         FLOW_IDS: ${{ inputs.flow-ids }}
         SUITE_KEYS: ${{ inputs.suite-keys }}
