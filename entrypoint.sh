@@ -977,6 +977,11 @@ echo "✅ Triggered $FLOW_RUN_COUNT flow(s)"
 echo "   Batch ID: $BATCH_ID"
 echo ""
 
+# Publish before polling so failed or interrupted tests still expose their batch.
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+  printf 'batch-id=%s\n' "$BATCH_ID" >> "$GITHUB_OUTPUT"
+fi
+
 # Polling configuration
 POLL_INTERVAL=15
 PRINTED_IDS_FILE=$(mktemp)
@@ -1118,48 +1123,37 @@ echo "   Flows:   $PASSED/$TOTAL passed"
 [ "$SKIPPED" != "0" ] && echo "   Skipped: $SKIPPED"
 echo ""
 
-# Success requires (a) we actually ran something, and (b) every flow either
-# passed or was intentionally skipped (e.g. platform filter). Phrasing it as
-# an explicit positive condition — rather than `(TOTAL - PASSED - SKIPPED) > 0`
-# — fails closed in two edge cases:
-#   1. TOTAL == 0  (empty batch / API glitch returning zeros): subtracting
-#      would give 0 and silently exit 0 with "All flows passed (0/0)".
-#   2. PASSED + SKIPPED > TOTAL  (inconsistent counters, jq `// 0` fallback
-#      hitting siblings unevenly): subtracting would go negative and
-#      `-gt 0` would be false → silent exit 0, reintroducing the exact
-#      fail-open class this script is trying to close.
-# This also fixes the original customer report: a run with only TERMINATED
-# flows (worker crash, infra issue, manual kill) exited 0 and printed
-# "All flows passed!" because the previous logic only summed FAILED + ERROR.
-ACCOUNTED_FOR=$((PASSED + SKIPPED))
-if [ "$TOTAL" -gt 0 ] && [ "$ACCOUNTED_FOR" -eq "$TOTAL" ]; then
-  if [ "$PASSED" -gt 0 ]; then
-    echo "✅ All flows passed ($PASSED/$TOTAL)."
-  else
-    # Every flow was intentionally skipped (e.g. matrix slot where the
-    # platform filter excluded everything). This is still a green build —
-    # users rely on it for `platform: ios` jobs that skip android-only
-    # flows and vice versa — but the previous "All flows passed (0/N)"
-    # message was self-contradictory. Be explicit instead.
-    echo "✅ No applicable flows ran (0 passed, $SKIPPED skipped)."
-  fi
-  exit 0
-elif [ "$TOTAL" -le 0 ]; then
-  # No flows accounted for at all — empty batch / zeroed summary. Don't
-  # try to invent a count; just say so plainly.
-  echo "❌ No flows ran (TOTAL=$TOTAL). Refusing to report success."
-  exit 1
-else
-  # TOTAL > 0 but ACCOUNTED_FOR != TOTAL. In the normal case
-  # (ACCOUNTED_FOR < TOTAL) this is the count of non-passed, non-skipped
-  # flows. In the inconsistent-counters case (ACCOUNTED_FOR > TOTAL) the
-  # subtraction would be negative, which is meaningless to print — fall
-  # back to a generic message rather than emit "❌ -1 flow(s) did not pass".
-  UNACCOUNTED=$((TOTAL - ACCOUNTED_FOR))
-  if [ "$UNACCOUNTED" -gt 0 ]; then
-    echo "❌ $UNACCOUNTED flow(s) did not pass (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
-  else
-    echo "❌ Inconsistent run summary: passed=$PASSED, skipped=$SKIPPED, total=$TOTAL (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
-  fi
+# API totals exclude skips and already fold passing retries into passed_flows.
+# A remaining skip means the requested flow never passed (for example, setup
+# failed). Cleanup errors alone must not fail otherwise successful flows.
+if [ "$FAILED" -gt 0 ] || [ "$ERROR_COUNT" -gt 0 ] || [ "$TERMINATED" -gt 0 ]; then
+  echo "❌ $((FAILED + ERROR_COUNT + TERMINATED)) flow(s) did not pass (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
   exit 1
 fi
+if [ "$SKIPPED" -gt 0 ]; then
+  echo "❌ $SKIPPED flow(s) were skipped without a passing retry. Check setup and execution results."
+  exit 1
+fi
+
+# Check each suite as well: an empty failed setup must not be hidden by another
+# suite's passing flows. An errored suite whose flows all passed may have only
+# failed cleanup, which is allowed. A cancelled suite remains a failure.
+BAD_GROUPS=$(echo "$STATUS_RESPONSE" | jq '[.run_groups[]? | select(
+  .status == "terminated" or
+  ((.status != "passed") and ((.runs | length) == 0)) or
+  any(.runs[]?; .status != "passed")
+)] | length')
+if [ "$BAD_GROUPS" -gt 0 ]; then
+  echo "❌ Suite execution did not complete all requested flows successfully. Check setup and execution results."
+  exit 1
+fi
+
+if [ "$TOTAL" -gt 0 ] && [ "$PASSED" -eq "$TOTAL" ]; then
+  echo "✅ All flows passed ($PASSED/$TOTAL)."
+  exit 0
+elif [ "$TOTAL" -eq 0 ] && [ "$PASSED" -eq 0 ]; then
+  echo "❌ No flows ran (TOTAL=$TOTAL). Refusing to report success."
+else
+  echo "❌ Inconsistent run summary: passed=$PASSED, skipped=$SKIPPED, total=$TOTAL (failed: $FAILED, error: $ERROR_COUNT, terminated: $TERMINATED)."
+fi
+exit 1

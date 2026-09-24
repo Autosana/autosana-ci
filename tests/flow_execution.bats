@@ -53,6 +53,25 @@ setup() {
 
 # --- Flow triggering ---
 
+@test "batch output survives failing tests" {
+    export FLOW_IDS="uuid-1"
+    export GITHUB_OUTPUT="$BATS_TEST_TMPDIR/outputs"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_some_failed.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    run cat "$GITHUB_OUTPUT"
+    assert_output "batch-id=batch-001"
+}
+
+@test "failed dispatch does not publish a batch output" {
+    export FLOW_IDS="uuid-1"
+    export GITHUB_OUTPUT="$BATS_TEST_TMPDIR/outputs"
+    export MOCK_CURL_STATUS_RUN_FLOWS=422
+    run bash "$ENTRYPOINT"
+    assert_failure
+    [ ! -e "$GITHUB_OUTPUT" ]
+}
+
 @test "FLOW_IDS triggers flow execution" {
     export FLOW_IDS="uuid-1,uuid-2"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
@@ -613,15 +632,31 @@ setup() {
     refute_output --partial "All flows passed"
 }
 
-# Skipped flows are intentional (e.g. platform filter), so they shouldn't
-# fail the action. A run where every non-skipped flow passed should exit 0.
-@test "passed plus skipped flows exits 0" {
+# API totals exclude skipped flows, but skips still mean a requested flow did
+# not pass. Passing flows elsewhere must not hide a setup failure.
+@test "passed plus skipped flows exits 1" {
     export FLOW_IDS="uuid-1"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_passed_with_skipped.json"
     run bash "$ENTRYPOINT"
-    assert_success
+    assert_failure
     assert_output --partial "Skipped: 1"
-    assert_output --partial "All flows passed (1/2)"
+    assert_output --partial "skipped without a passing retry"
+    refute_output --partial "All flows passed"
+}
+
+@test "a skip cannot numerically cancel out a failed flow" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_CURL_BODY_POLL_STATUS
+    MOCK_CURL_BODY_POLL_STATUS=$(jq '
+      .run_groups[0].runs += [{id: "run-3", name: "Failed setup", status: "failed"}] |
+      .run_groups[0].status = "failed" |
+      .summary.total_flows = 2 | .summary.failed_flows = 1 |
+      .summary.passed_groups = 0 | .summary.failed_groups = 1
+    ' "$PROJECT_ROOT/tests/fixtures/poll_passed_with_skipped.json")
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "failed: 1"
+    refute_output --partial "All flows passed"
 }
 
 # A real-world failing run usually has multiple buckets populated. Lock in
@@ -638,18 +673,14 @@ setup() {
     assert_output --partial "Skipped: 1"
 }
 
-# A matrix CI job (e.g. `platform: ios`) can legitimately skip every flow
-# when the suite is android-only and vice versa. That should stay a green
-# build — but the previous message read "✅ All flows passed (0/2)." which
-# is self-contradictory (Cursor Bugbot Medium finding on 4c156b4). Assert
-# we still exit 0 and that the message is no longer a contradiction.
-@test "all flows skipped exits 0 with non-contradictory message" {
+# No requested flow passed when every final result is skipped.
+@test "all flows skipped exits 1" {
     export FLOW_IDS="uuid-1"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_skipped.json"
     run bash "$ENTRYPOINT"
-    assert_success
-    assert_output --partial "No applicable flows ran (0 passed, 2 skipped)"
-    refute_output --partial "All flows passed (0/"
+    assert_failure
+    assert_output --partial "2 flow(s) were skipped without a passing retry"
+    refute_output --partial "All flows passed"
 }
 
 # Defense in depth: if total_flows is 0 (empty batch / API glitch), the
@@ -664,12 +695,8 @@ setup() {
     assert_output --partial "No flows ran"
 }
 
-# Defense in depth: if the backend returns inconsistent counters such that
-# PASSED + SKIPPED > TOTAL (e.g. mismatched `// 0` fallbacks), a naive
-# subtraction would go negative and silently exit 0. Make sure we fail
-# closed AND emit a sensible message instead of "❌ -1 flow(s) did not
-# pass" — PR-bot regression (Cursor Bugbot Low finding on cf50cf0).
-@test "inconsistent counters (PASSED+SKIPPED > TOTAL) fails closed with a sensible message" {
+# The API excludes skips from total; passed must never exceed that total.
+@test "inconsistent counters (PASSED > TOTAL) fails closed with a sensible message" {
     export FLOW_IDS="uuid-1"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_inconsistent_counters.json"
     run bash "$ENTRYPOINT"
@@ -851,4 +878,58 @@ setup() {
     assert_success
     # Forwarded as-is; the backend's normalize_web_browser maps to canonical.
     assert_output --partial '"web_browser": "msedge"'
+}
+
+@test "suite teardown failure is allowed when every flow passed" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_teardown_failure.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "All flows passed (2/2)"
+}
+
+@test "setup failure with skipped flows fails CI" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_setup_failure.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "skipped without a passing retry"
+    refute_output --partial "All flows passed"
+}
+
+@test "empty failed setup is not hidden by another suite passing" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_CURL_BODY_POLL_STATUS
+    MOCK_CURL_BODY_POLL_STATUS=$(jq '
+      .run_groups += [{name: "Failed setup", status: "error", runs: []}] |
+      .summary.total_groups += 1 | .summary.failed_groups = 1
+    ' "$PROJECT_ROOT/tests/fixtures/poll_all_passed.json")
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Suite execution did not complete all requested flows"
+}
+
+@test "passing retry reported as passed by API allows CI to pass" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_SEQUENCE_DIR="$BATS_TEST_TMPDIR/retry"
+    export MOCK_POLL_RESPONSE_COUNTER_FILE="$BATS_TEST_TMPDIR/polls"
+    mkdir -p "$MOCK_POLL_RESPONSE_SEQUENCE_DIR"
+    # Initial link fetch, then an unfinished poll with skipped original runs.
+    jq '.is_complete = false' "$PROJECT_ROOT/tests/fixtures/poll_all_skipped.json" > "$MOCK_POLL_RESPONSE_SEQUENCE_DIR/1.json"
+    cp "$MOCK_POLL_RESPONSE_SEQUENCE_DIR/1.json" "$MOCK_POLL_RESPONSE_SEQUENCE_DIR/2.json"
+    # The API folds passing retries into the final logical flow results.
+    cp "$PROJECT_ROOT/tests/fixtures/poll_all_passed.json" "$MOCK_POLL_RESPONSE_SEQUENCE_DIR/3.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "SKIPPED"
+    assert_output --partial "All flows passed (2/2)"
+}
+
+@test "suite cancellation fails even when completed flows passed" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_CURL_BODY_POLL_STATUS
+    MOCK_CURL_BODY_POLL_STATUS=$(jq '.run_groups[0].status = "terminated"' "$PROJECT_ROOT/tests/fixtures/poll_all_passed.json")
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Suite execution did not complete all requested flows"
 }

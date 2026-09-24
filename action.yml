@@ -94,12 +94,17 @@ inputs:
     description: "Wait for triggered flows to finish and gate the job on their result (default: true). Set to 'false' to trigger the flows, print their run links, and exit immediately without blocking CI. Applies when an ID, key, or label selector triggers tests."
     required: false
     default: "true"
+outputs:
+  batch-id:
+    description: "ID of the triggered test batch. Available even when tests fail."
+    value: ${{ steps.run.outputs.batch-id }}
 runs:
   using: "composite"
   steps:
     - run: chmod +x ${{ github.action_path }}/entrypoint.sh
       shell: bash
-    - run: ${{ github.action_path }}/entrypoint.sh
+    - id: run
+      run: ${{ github.action_path }}/entrypoint.sh
       shell: bash
       env:
         AUTOSANA_KEY: ${{ inputs.api-key }}
