@@ -102,9 +102,10 @@ elif echo "$PLATFORM" | grep -qE '^(android|ios)'; then
     if [ ${#APP_ID} -gt 64 ] || ! echo "$APP_ID" | grep -qE '^[a-z0-9]+([._-][a-z0-9]+)*$'; then
       echo "❌ ERROR: Invalid app-id format."
       echo "   For mobile, app-id must be 64 characters or less, using lowercase letters,"
-      echo "   numbers, dots, hyphens, and underscores."
+      echo "   numbers, dots, hyphens, and underscores. It must start and end with a letter"
+      echo "   or number, with no two separators in a row."
       echo "   Examples: 'v7.12.0', 'release-7-12', 'canary'"
-      echo "   Invalid: 'V7.12.0', 'v7 12', '.v7'"
+      echo "   Invalid: 'V7.12.0', 'v7 12', '.v7', 'v7.12.0-', 'v7..1'"
       echo "   Provided: '$APP_ID'"
       exit 1
     fi

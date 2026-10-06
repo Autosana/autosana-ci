@@ -65,6 +65,18 @@ setup() {
     assert_output --partial "Invalid app-id format"
 }
 
+@test "mobile platform APP_ID with a trailing or doubled separator exits 1" {
+    export APP_ID="v7.12.0-"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "no two separators in a row"
+
+    export APP_ID="v7..1"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Invalid app-id format"
+}
+
 @test "mobile platform APP_ID longer than 64 characters exits 1" {
     export APP_ID="$(printf 'a%.0s' {1..65})"
     run bash "$ENTRYPOINT"
