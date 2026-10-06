@@ -31,6 +31,39 @@ setup() {
     assert_output --partial '"environment": "staging"'
 }
 
+@test "mobile upload sends app-id in start, confirm, and run payloads" {
+    export APP_ID="v7.12.0"
+    export FLOW_IDS="uuid-1"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    [ "$(grep -c '"app_id": "v7.12.0"' <<< "$output")" -eq 3 ]
+}
+
+@test "mobile upload omits app_id when app-id is not set" {
+    export FLOW_IDS="uuid-1"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    # Request payloads are pretty-printed; the compact mock responses carry their own app_id.
+    refute_output --partial '"app_id": '
+}
+
+@test "chrome-extension upload omits app-id from start and confirm payloads" {
+    export PLATFORM="chrome-extension"
+    export BUNDLE_ID="my-extension"
+    export BUILD_PATH="$BATS_TEST_TMPDIR/extension.zip"
+    export APP_ID="v7.12.0"
+    touch "$BUILD_PATH"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    refute_output --partial '"app_id": '
+}
+
 @test "web upload preserves environment in payload" {
     export PLATFORM="web"
     export APP_ID="my-web-app"

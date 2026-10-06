@@ -81,6 +81,7 @@ elif echo "$PLATFORM" | grep -qE '^(android|ios)'; then
   echo "📱 Mobile platform detected: $PLATFORM"
   echo "🔍 Checking mobile-specific environment variables..."
   echo "   BUNDLE_ID: $BUNDLE_ID"
+  echo "   APP_ID: ${APP_ID:-<not set>}"
   echo "   PLATFORM: $PLATFORM"
   echo "   BUILD_PATH: $BUILD_PATH"
   echo "   APP_NAME: ${APP_NAME:-<not set>}"
@@ -415,8 +416,10 @@ START_PAYLOAD=$(jq -n \
   --arg filename "$FILENAME" \
   --arg name "$APP_NAME" \
   --arg environment "$ENVIRONMENT" \
+  --arg app_id "$APP_ID" \
   '{bundle_id: $bundle_id, platform: $platform, filename: $filename, name: $name}
-   + (if $platform != "chrome-extension" and $environment != "" then {environment: $environment} else {} end)')
+   + (if $platform != "chrome-extension" and $environment != "" then {environment: $environment} else {} end)
+   + (if $platform != "chrome-extension" and $app_id != "" then {app_id: $app_id} else {} end)')
 # kcov-ignore-end
 
 echo "   Request Payload:"
@@ -593,6 +596,7 @@ CONFIRM_PAYLOAD=$(jq -n \
   --arg repo_full_name "$REPO_FULL_NAME" \
   --arg variables "$VARIABLES" \
   --arg keychain_remapping "$KEYCHAIN_REMAPPING_VALUE" \
+  --arg app_id "$APP_ID" \
   '{
     bundle_id: $bundle_id,
     platform: $platform,
@@ -602,6 +606,7 @@ CONFIRM_PAYLOAD=$(jq -n \
     branch_name: $branch_name,
     repo_full_name: $repo_full_name
   } + (if $platform != "chrome-extension" and $environment != "" then {environment: $environment} else {} end)
+    + (if $platform != "chrome-extension" and $app_id != "" then {app_id: $app_id} else {} end)
     + (if $variables != "" then {variables: $variables} else {} end)
     + (if $keychain_remapping == "true" then {enable_ios_keychain_access_group_remapping: true}
        elif $keychain_remapping == "false" then {enable_ios_keychain_access_group_remapping: false}
@@ -897,6 +902,7 @@ else
   # kcov-ignore-start
   RUN_PAYLOAD=$(jq -n \
     --arg bundle_id "$BUNDLE_ID" \
+    --arg app_id "$APP_ID" \
     --arg platform "$PLATFORM" \
     --arg environment "$ENVIRONMENT" \
     --arg variables "$VARIABLES" \
@@ -914,6 +920,7 @@ else
     --argjson suite_keys "$SUITE_KEYS_JSON" \
     --argjson labels "$LABELS_JSON" \
     '{bundle_id: $bundle_id, platform: $platform, repo_full_name: $repo_full_name, ref: $ref}
+     + (if $app_id != "" then {app_id: $app_id} else {} end)
      + (if $key_selector_mode == "true"
         then {flow_keys: $flow_keys, suite_keys: $suite_keys}
         else {flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels} end)

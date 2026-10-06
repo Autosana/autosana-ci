@@ -32,9 +32,9 @@ inputs:
     description: "[Multi-device mobile runs] JSON array of ordered device selections. Two-device flows currently require exactly two objects with physical, model, and os_version fields as needed."
     required: false
 
-  # Web-specific inputs (required when platform is web)
+  # Web-specific inputs (required when platform is web). app-id is also optional for mobile.
   app-id:
-    description: "[Web] Unique identifier for your web app (lowercase, alphanumeric with hyphens, e.g., 'my-web-app')"
+    description: "[Web] Unique identifier for your web app (lowercase, alphanumeric with hyphens, e.g., 'my-web-app'). [Mobile, optional] Custom identifier that keeps several apps with the same bundle ID in one environment, e.g. one per release version ('v7.12.0'). The app is created on first upload."
     required: false
   url:
     description: "[Web] URL to test (e.g., Vercel/Netlify preview deployment URL)"
@@ -55,7 +55,7 @@ inputs:
     description: "Display name for your app (optional, will update if app already exists)"
     required: false
   environment:
-    description: "Environment name to associate this app with (e.g., 'staging', 'production'). Apps with the same identifier (bundle ID for mobile, app-id for web) but different environments are treated as separate apps. Chrome extensions are organization-wide and ignore this input."
+    description: "Environment name to associate this app with (e.g., 'staging', 'production'). Apps with the same identifier (bundle ID plus optional app-id for mobile, app-id for web) but different environments are treated as separate apps. Chrome extensions are organization-wide and ignore this input."
     required: false
 
   api-url:
