@@ -15,11 +15,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # The public test site sleeps when idle, and its first response can take
-      # longer than a flow's page-load timeout. Wake it before running flows.
-      - name: Wake the test site
-        run: curl -sS -o /dev/null --retry 3 --retry-all-errors --max-time 60 https://the-internet.herokuapp.com/
-
       - name: Run test flows with Autosana (staging)
         uses: ./
         with:
