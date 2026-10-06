@@ -95,6 +95,20 @@ elif echo "$PLATFORM" | grep -qE '^(android|ios)'; then
     echo "   - BUILD_PATH: ${BUILD_PATH:+SET}${BUILD_PATH:-NOT SET}"
     exit 1
   fi
+
+  # Validate optional app-id format. An app-id equal to the bundle ID means "no
+  # custom app-id" to the backend, so bundle ID casing and length are fine there.
+  if [ -n "$APP_ID" ] && [ "$APP_ID" != "$BUNDLE_ID" ]; then
+    if [ ${#APP_ID} -gt 64 ] || ! echo "$APP_ID" | grep -qE '^[a-z0-9]+([._-][a-z0-9]+)*$'; then
+      echo "❌ ERROR: Invalid app-id format."
+      echo "   For mobile, app-id must be 64 characters or less, using lowercase letters,"
+      echo "   numbers, dots, hyphens, and underscores."
+      echo "   Examples: 'v7.12.0', 'release-7-12', 'canary'"
+      echo "   Invalid: 'V7.12.0', 'v7 12', '.v7'"
+      echo "   Provided: '$APP_ID'"
+      exit 1
+    fi
+  fi
 elif [ "$PLATFORM" = "chrome-extension" ]; then
   echo "🧩 Chrome extension platform detected"
   echo "🔍 Checking extension-specific environment variables..."
