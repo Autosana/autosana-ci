@@ -25,6 +25,9 @@ jobs:
           platform: web
           name: The Internet
           app-id: the-internet
-          url: https://the-internet.herokuapp.com/
+          # Flows load our own staging sign-in page. The public demo site used
+          # before intermittently took 30 seconds to respond, which timed out
+          # page launch and failed runs unrelated to the Action.
+          url: https://dashboard.staging.autosana.ai/login
           flow-ids: feeec631-bed1-43fe-ac16-ed65e4b9bd19
           wait: false

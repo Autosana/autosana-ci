@@ -61,6 +61,7 @@ disable remapping for the app.
 Shared optional inputs:
 
 - `name`: Display name for the app
+- `app-id`: Optional for mobile (required for web, see below). On mobile it is a custom identifier that keeps several apps with the same bundle ID in one environment, for example one per release version (`v7.12.0`). The app is created on first upload. A mobile `app-id` can be up to 64 characters: lowercase letters, numbers, dots, hyphens, and underscores. It must start and end with a letter or number, with no two separators in a row. A web `app-id` allows only lowercase letters, numbers, and hyphens.
 - `environment`: Environment name such as `staging` or `production`. Chrome extensions are organization-wide and ignore this input.
 - `api-url`: Override the API base URL. Defaults to `https://backend.autosana.ai`
 - `variables`: Key-value variables exposed to flow instructions via `${env:KEY}`. Use `KEY1=VALUE1,KEY2=VALUE2`.
@@ -73,10 +74,10 @@ Shared optional inputs:
 - `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires a flow, suite, or label selector. Currently unsupported with `suite-keys`.
 - `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when any flow, suite, or label selector triggers tests.
 - `enable-ios-keychain-access-group-remapping`: iOS `.ipa` only. Persist whether future IPA uploads should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit it to inherit the app's saved preference.
-- `physical-device`: Single-device mobile runs only. Set to `true` to run on real hardware. Defaults to `false`.
-- `device-model`: Single-device mobile runs only. Model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`.
-- `os-version`: Single-device mobile runs only. OS version supported by the selected model, such as `17`, or `latest`.
-- `devices`: Multi-device mobile runs only. JSON array of ordered device selections. Two-device flows currently require exactly two objects.
+- `physical-device`: Mobile runs only. Set to `true` to run on real hardware. Defaults to `false`.
+- `device-model`: Mobile runs only. Model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`. Two-device flows use it for both devices.
+- `os-version`: Mobile runs only. OS version supported by the selected model, such as `17`, or `latest`. Two-device flows use it for both devices.
+- `devices`: Mobile runs only. JSON array of exactly two ordered device selections, used instead of the three inputs above to choose each device of a two-device flow. One-device flows in the same run use the first entry.
 
 Direct test runs resolve code-managed flows, suites, and labels from the exact
 checked-out commit. GitHub repository metadata and a full commit SHA are required
@@ -131,9 +132,14 @@ keep that dimension rolling. To pin both the model and OS:
 Omitting `device-model` and `os-version` retains the same rolling-latest
 behavior for backward compatibility.
 
-For a flow or suite configured to use two devices, pass an ordered JSON array
-through `devices`. Each entry supports `physical`, `model`, and `os_version`.
-Do not combine `devices` with the single-device selection inputs.
+One run can mix one-device and two-device flows, for example under a shared
+label. No extra input is needed: a flow configured to use two devices runs on
+two devices matching the selection above.
+
+To choose each device of a two-device flow, pass an ordered JSON array through
+`devices` instead. Each entry supports `physical`, `model`, and `os_version`.
+One-device flows in the same run use the first entry. Do not combine `devices`
+with `physical-device`, `device-model`, or `os-version`.
 
 ```yaml
 - uses: autosana/autosana-ci@main
@@ -142,7 +148,7 @@ Do not combine `devices` with the single-device selection inputs.
     platform: ios
     bundle-id: com.example.app
     build-path: build/MyApp.ipa
-    flow-ids: "two-device-flow-uuid"
+    labels: "regression"
     devices: |
       [
         {"physical": true, "model": "iPhone 17 Pro", "os_version": "26"},
@@ -151,8 +157,7 @@ Do not combine `devices` with the single-device selection inputs.
 ```
 
 Use `[{"physical": false}, {"physical": false}]` for two rolling Latest
-virtual devices. Mixed one-device and two-device targets are rejected by the
-API.
+virtual devices.
 
 ### Fire-and-forget runs
 

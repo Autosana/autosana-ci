@@ -58,6 +58,47 @@ setup() {
     assert_output --partial "Missing required inputs for web"
 }
 
+@test "mobile platform invalid APP_ID with uppercase exits 1" {
+    export APP_ID="V7.12.0"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Invalid app-id format"
+}
+
+@test "mobile platform APP_ID with a trailing or doubled separator exits 1" {
+    export APP_ID="v7.12.0-"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "no two separators in a row"
+
+    export APP_ID="v7..1"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Invalid app-id format"
+}
+
+@test "mobile platform APP_ID longer than 64 characters exits 1" {
+    export APP_ID="$(printf 'a%.0s' {1..65})"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Invalid app-id format"
+}
+
+@test "mobile platform accepts APP_ID with dots, hyphens, and underscores" {
+    export APP_ID="release_7.12-rc1"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Upload completed successfully"
+}
+
+@test "mobile platform accepts APP_ID equal to the bundle ID" {
+    export BUNDLE_ID="com.Example.App"
+    export APP_ID="com.Example.App"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Upload completed successfully"
+}
+
 @test "web platform invalid APP_ID with uppercase exits 1" {
     export PLATFORM="web"
     export APP_ID="My-App"
