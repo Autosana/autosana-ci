@@ -22,4 +22,4 @@ jobs:
           platform: web
           name: The Internet
           app-id: the-internet
-          url: https://the-internet.herokuapp.com/
+          url: https://dashboard.staging.autosana.ai/login
