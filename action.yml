@@ -19,17 +19,17 @@ inputs:
     description: "[iOS] Persist whether .ipa builds should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit to use the app's saved preference."
     required: false
   physical-device:
-    description: "[Single-device mobile runs] Run on real hardware. Defaults to false."
+    description: "[Mobile runs] Run on real hardware. Defaults to false."
     required: false
     default: "false"
   device-model:
-    description: "[Single-device mobile runs] Model from the Autosana device catalog (for example, 'Pixel 10 Pro'). 'latest' is normalized to rolling model selection."
+    description: "[Mobile runs] Model from the Autosana device catalog (for example, 'Pixel 10 Pro'). 'latest' is normalized to rolling model selection. Two-device flows use it for both devices."
     required: false
   os-version:
-    description: "[Single-device mobile runs] OS version supported by the selected device model (for example, '17'). 'latest' is normalized to rolling OS selection."
+    description: "[Mobile runs] OS version supported by the selected device model (for example, '17'). 'latest' is normalized to rolling OS selection. Two-device flows use it for both devices."
     required: false
   devices:
-    description: "[Multi-device mobile runs] JSON array of ordered device selections. Two-device flows currently require exactly two objects with physical, model, and os_version fields as needed."
+    description: "[Mobile runs] JSON array of exactly two ordered device selections with physical, model, and os_version fields as needed. Use it instead of physical-device, device-model, and os-version to choose each device of a two-device flow; one-device flows in the same run use the first entry."
     required: false
 
   # Web-specific inputs (required when platform is web)
