@@ -61,6 +61,7 @@ disable remapping for the app.
 Shared optional inputs:
 
 - `name`: Display name for the app
+- `app-id`: Optional for mobile (required for web, see below). On mobile it is a custom identifier that keeps several apps with the same bundle ID in one environment, for example one per release version (`v7.12.0`). The app is created on first upload. A mobile `app-id` can be up to 64 characters: lowercase letters, numbers, dots, hyphens, and underscores. It must start and end with a letter or number, with no two separators in a row. A web `app-id` allows only lowercase letters, numbers, and hyphens.
 - `environment`: Environment name such as `staging` or `production`. Chrome extensions are organization-wide and ignore this input.
 - `api-url`: Override the API base URL. Defaults to `https://backend.autosana.ai`
 - `variables`: Key-value variables exposed to flow instructions via `${env:KEY}`. Use `KEY1=VALUE1,KEY2=VALUE2`.
