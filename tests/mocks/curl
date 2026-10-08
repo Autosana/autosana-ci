@@ -42,6 +42,10 @@ case "$URL" in
         ;;
 esac
 
+if [ -n "${MOCK_CURL_LOG:-}" ]; then
+    printf '%s\n' "$ENDPOINT" >> "$MOCK_CURL_LOG"
+fi
+
 if [ -n "${MOCK_CURL_CAPTURE_DIR:-}" ] && [ -n "$DATA" ]; then
     mkdir -p "$MOCK_CURL_CAPTURE_DIR"
     printf '%s' "$DATA" > "$MOCK_CURL_CAPTURE_DIR/$ENDPOINT.json"

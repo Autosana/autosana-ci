@@ -36,6 +36,10 @@ _common_setup() {
     # Default to the blocking (wait) behavior so existing tests assert on the
     # full poll + summary path. No-wait tests override this explicitly.
     export WAIT="true"
+    # Existing upload tests opt out; changed_flows.bats exercises the new default.
+    export RUN_CHANGED_FLOWS="false"
+    unset GITHUB_STEP_SUMMARY GITHUB_OUTPUT GITHUB_RUN_ID GITHUB_RUN_ATTEMPT GITHUB_JOB
+    unset MOCK_CURL_LOG MOCK_CURL_CAPTURE_DIR
     # Initialize WEB_BROWSER explicitly so a stray value in the outer shell
     # (developer's local env, CI runner inheriting from a parent process)
     # doesn't leak into tests that don't override it. Validation in
