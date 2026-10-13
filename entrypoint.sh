@@ -71,13 +71,7 @@ if [ "$PLATFORM" = "web" ]; then
     echo "   Provided: '$URL'"
     exit 1
   fi
-elif echo "$PLATFORM" | grep -qE '^(android|ios)'; then
-  if [ "$PLATFORM" = "android-arm64-gplay" ]; then
-    echo "⚠️  WARNING: Platform 'android-arm64-gplay' is deprecated."
-    echo "   Android devices include Google Play Services by default now."
-    echo "   Please update your workflow to use platform: 'android'."
-    echo ""
-  fi
+elif echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
   echo "📱 Mobile platform detected: $PLATFORM"
   echo "🔍 Checking mobile-specific environment variables..."
   echo "   BUNDLE_ID: $BUNDLE_ID"
@@ -145,7 +139,7 @@ elif [ "$PLATFORM" = "chrome-extension" ]; then
       ;;
   esac
 else
-  echo "❌ ERROR: Invalid platform '$PLATFORM'. Must start with 'android' or 'ios', or be 'web' or 'chrome-extension'."
+  echo "❌ ERROR: Invalid platform '$PLATFORM'. Must be 'android', 'ios', 'web', or 'chrome-extension'."
   exit 1
 fi
 
@@ -482,7 +476,7 @@ if ! echo "$JSON_RESPONSE" | jq empty 2>/dev/null; then
   exit 1
 fi
 
-# Display any API warnings (e.g. deprecated platform)
+# Display any API warnings
 echo "$JSON_RESPONSE" | jq -r '.warnings[]? // empty' 2>/dev/null | while IFS= read -r w; do
   echo "⚠️  $w"
 done
@@ -675,7 +669,7 @@ if ! echo "$CONFIRM_JSON_RESPONSE" | jq empty 2>/dev/null; then
   exit 1
 fi
 
-# Display any API warnings (e.g. deprecated platform)
+# Display any API warnings
 echo "$CONFIRM_JSON_RESPONSE" | jq -r '.warnings[]? // empty' 2>/dev/null | while IFS= read -r w; do
   echo "⚠️  $w"
 done
@@ -754,7 +748,7 @@ DEVICES_PROVIDED="false"
 DEVICES_JSON="[]"
 if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
   DEVICES_PROVIDED="true"
-  if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
+  if echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
     if ! DEVICES_JSON=$(echo "$DEVICES" | jq -c . 2>/dev/null); then
       echo "❌ ERROR: devices must be valid JSON."
       exit 1
@@ -797,7 +791,7 @@ if [ "$(echo "$OS_VERSION" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = 
   OS_VERSION_PAYLOAD=""
   OS_VERSION_IS_LATEST="true"
 fi
-if echo "$PLATFORM" | grep -qE '^(android|ios)'; then
+if echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
   case "$PHYSICAL_DEVICE_LOWER" in
     true|false)
       ;;
