@@ -588,6 +588,9 @@ if [[ "$FILENAME_LOWER" == *.ipa ]] && echo "$PLATFORM" | tr '[:upper:]' '[:lowe
   else
     echo "   iOS keychain access-group remapping: using saved app preference"
   fi
+elif [[ "$FILENAME_LOWER" == *.aab ]]; then
+  # The server converts an Android App Bundle to an APK before confirm-upload returns.
+  CONFIRM_MAX_TIME=900
 else
   CONFIRM_MAX_TIME=60
 fi

@@ -19,6 +19,22 @@ setup() {
     assert_output --partial "Upload completed successfully"
 }
 
+@test "android .aab confirm-upload waits long enough for the server to convert it" {
+    cp "$PROJECT_ROOT/tests/fixtures/dummy.apk" "$BATS_TEST_TMPDIR/app-release.aab"
+    export BUILD_PATH="$BATS_TEST_TMPDIR/app-release.aab"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/aab-timeouts"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_equal "$(cat "$MOCK_CURL_CAPTURE_DIR/CONFIRM_UPLOAD.max_time")" "900"
+}
+
+@test "android .apk confirm-upload keeps the short timeout" {
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/apk-timeouts"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_equal "$(cat "$MOCK_CURL_CAPTURE_DIR/CONFIRM_UPLOAD.max_time")" "60"
+}
+
 @test "ios .ipa is reported as a real-device build" {
     export PLATFORM="ios"
     export BUILD_PATH="$PROJECT_ROOT/tests/fixtures/dummy.ipa"

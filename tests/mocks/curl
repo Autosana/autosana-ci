@@ -10,6 +10,7 @@
 
 METHOD="GET"
 URL=""
+MAX_TIME=""
 DATA=""
 HAS_WRITE_OUT=false
 prev_arg=""
@@ -19,6 +20,7 @@ for arg in "$@"; do
         -X) METHOD="$arg" ;;
         -d) DATA="$arg" ;;
         -w) HAS_WRITE_OUT=true ;;
+        --max-time) MAX_TIME="$arg" ;;
     esac
     prev_arg="$arg"
     if [[ "$arg" == http* ]]; then
@@ -45,6 +47,10 @@ esac
 if [ -n "${MOCK_CURL_CAPTURE_DIR:-}" ] && [ -n "$DATA" ]; then
     mkdir -p "$MOCK_CURL_CAPTURE_DIR"
     printf '%s' "$DATA" > "$MOCK_CURL_CAPTURE_DIR/$ENDPOINT.json"
+fi
+if [ -n "${MOCK_CURL_CAPTURE_DIR:-}" ] && [ -n "${MAX_TIME:-}" ]; then
+    mkdir -p "$MOCK_CURL_CAPTURE_DIR"
+    printf '%s' "$MAX_TIME" > "$MOCK_CURL_CAPTURE_DIR/$ENDPOINT.max_time"
 fi
 
 # Check for per-endpoint overrides
