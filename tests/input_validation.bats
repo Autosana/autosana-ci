@@ -137,9 +137,20 @@ setup() {
 
 # --- Mobile platform validation ---
 
-@test "android platform missing BUNDLE_ID exits 1" {
+@test "android platform missing BUNDLE_ID reads it from the build" {
     export PLATFORM="android"
     export BUNDLE_ID=""
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Build's bundle ID: com.example.app"
+    assert_output --partial "Upload completed successfully"
+}
+
+@test "mobile platform missing BUNDLE_ID exits 1 when the build doesn't name it" {
+    export PLATFORM="ios"
+    export BUNDLE_ID=""
+    export BUILD_PATH="$BATS_TEST_TMPDIR/expo-build.zip"
+    printf '\x1f\x8b\x08\x00gzip tarball' > "$BUILD_PATH"
     run bash "$ENTRYPOINT"
     assert_failure
     assert_output --partial "Missing required inputs for mobile"
@@ -153,12 +164,13 @@ setup() {
     assert_output --partial "Missing required inputs for mobile"
 }
 
-@test "ios platform missing BUNDLE_ID exits 1" {
+@test "ios platform missing BUNDLE_ID reads it from the build" {
     export PLATFORM="ios"
     export BUNDLE_ID=""
+    export BUILD_PATH="$PROJECT_ROOT/tests/fixtures/dummy.app.zip"
     run bash "$ENTRYPOINT"
-    assert_failure
-    assert_output --partial "Missing required inputs for mobile"
+    assert_success
+    assert_output --partial "Build's bundle ID: com.example.app"
 }
 
 @test "ios platform missing BUILD_PATH exits 1" {
@@ -438,6 +450,7 @@ setup() {
 
 @test "valid ios inputs pass validation" {
     export PLATFORM="ios"
+    export BUILD_PATH="$PROJECT_ROOT/tests/fixtures/dummy.app.zip"
     run bash "$ENTRYPOINT"
     assert_success
     assert_output --partial "All required environment variables are set"

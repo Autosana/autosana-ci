@@ -21,6 +21,35 @@ _redact_payload() {
   jq 'if has("variables") then .variables = "[REDACTED]" else . end'
 }
 
+# Check a mobile build before it uploads (check_build.py, when python3 is there): refuse
+# one that can never run, and take its bundle ID or package name when bundle-id isn't set.
+_check_build() {
+  local script output status
+  script="$(dirname "${BASH_SOURCE[0]}")/check_build.py"
+  if [ ! -f "$BUILD_PATH" ] || ! command -v python3 >/dev/null 2>&1; then
+    return 0
+  fi
+  set +e
+  output=$(python3 "$script" "$PLATFORM" "$BUILD_PATH" 2>/dev/null)
+  status=$?
+  set -e
+  if [ "$status" -eq 2 ]; then
+    echo "❌ ERROR: $output"
+    exit 1
+  fi
+  if [ "$status" -ne 0 ] || [ -z "$output" ]; then
+    return 0
+  fi
+  echo "   Build's bundle ID: $output"
+  if [ -z "$BUNDLE_ID" ]; then
+    BUNDLE_ID="$output"
+  elif [ "$(echo "$BUNDLE_ID" | tr '[:upper:]' '[:lower:]')" != "$(echo "$output" | tr '[:upper:]' '[:lower:]')" ]; then
+    echo "❌ ERROR: The build's bundle ID is $output, but bundle-id is $BUNDLE_ID."
+    echo "   Upload a build of $BUNDLE_ID, or set bundle-id to $output."
+    exit 1
+  fi
+}
+
 # Check common required inputs
 if [ -z "$AUTOSANA_KEY" ] || [ -z "$PLATFORM" ]; then
   echo "❌ ERROR: Missing required inputs."
@@ -81,10 +110,14 @@ elif echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
   echo "   APP_NAME: ${APP_NAME:-<not set>}"
   echo ""
 
+  if [ -n "$BUILD_PATH" ]; then
+    _check_build
+  fi
+
   if [ -z "$BUNDLE_ID" ] || [ -z "$BUILD_PATH" ]; then
     echo "❌ ERROR: Missing required inputs for mobile platform."
     echo "   Required variables:"
-    echo "   - BUNDLE_ID: ${BUNDLE_ID:+SET}${BUNDLE_ID:-NOT SET}"
+    echo "   - BUNDLE_ID: ${BUNDLE_ID:+SET}${BUNDLE_ID:-NOT SET} (read from the build when it can be)"
     echo "   - PLATFORM: ${PLATFORM:+SET}${PLATFORM:-NOT SET}"
     echo "   - BUILD_PATH: ${BUILD_PATH:+SET}${BUILD_PATH:-NOT SET}"
     exit 1

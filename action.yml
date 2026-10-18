@@ -10,7 +10,7 @@ inputs:
 
   # Mobile / extension inputs (required when platform is android, ios, or chrome-extension)
   bundle-id:
-    description: "[Mobile/Extension] Your app's bundle ID, or a stable identifier for your extension (e.g. 'my-extension')"
+    description: "[Mobile/Extension] Your app's bundle ID, or a stable identifier for your extension (e.g. 'my-extension'). Optional for Android and iOS builds that name it themselves (an .apk, .aab, zipped .app, or .ipa); when set, it must match the build's."
     required: false
   build-path:
     description: "[Mobile/Extension] Full path to the build artifact. Android: .apk or .aab. iOS: .ipa or a zipped .app bundle. Chrome extension: .zip of the unpacked Manifest V3 extension directory."

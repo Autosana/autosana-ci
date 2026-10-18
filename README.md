@@ -176,9 +176,14 @@ By default, when you pass a flow, suite, or label selector, the action waits for
 
 Platform-specific required inputs:
 
-- Mobile (`android` or `ios`): `bundle-id`, `build-path`
+- Mobile (`android` or `ios`): `build-path`, plus `bundle-id` when the build doesn't name it (an `.apk`, `.aab`, zipped `.app`, or `.ipa` does)
 - Chrome extension (`chrome-extension`): `bundle-id`, `build-path` (a `.zip` containing the unpacked Manifest V3 extension)
 - Web (`web`): `app-id`, `url`
+
+Before an Android or iOS build uploads, the action checks it on the runner (with `python3`, when
+there is one) and stops with an error when it can never run: a file that isn't a build, a zip cut
+off before its end, an Android file with no manifest, a device build or an Intel-only Simulator
+build in a `.zip`, or a build whose bundle ID isn't `bundle-id`.
 
 Chrome extension Actions only upload extension builds. Do not pass flow, suite,
 or label selectors to that step. Attach the extension to a web app, then
