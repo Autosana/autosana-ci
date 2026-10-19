@@ -1,0 +1,16 @@
+# Weekly version updates into staging; they ship with the next release.
+# The action itself is a composite shell script with no package dependencies, so only
+# the actions used by our workflows are tracked. Minor and patch updates come grouped
+# and merge on their own once the required checks pass
+# (.github/workflows/dependabot-auto-merge.yml). Majors come as their own PRs.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "staging"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      github-actions:
+        update-types: ["minor", "patch"]
