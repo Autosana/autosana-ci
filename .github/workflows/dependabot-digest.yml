@@ -1,0 +1,36 @@
+name: Dependabot digest
+
+# Every Tuesday, posts this repo's open Dependabot PRs to #pull-requests-for-review.
+# Minor and patch updates that pass CI merge themselves on Monday, so anything still
+# open needs a person: a major update or a failing check. Quiet weeks post nothing.
+on:
+  schedule:
+    - cron: "0 16 * * 2" # Tuesdays, 9am PT
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+  statuses: read
+
+jobs:
+  digest:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Post open Dependabot PRs to Slack
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_PR_REVIEW_WEBHOOK }}
+          REVIEWERS: "<@U08NR4GT37H>"
+        run: |
+          prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --author app/dependabot --state open \
+            --json title,url,statusCheckRollup \
+            --jq '.[] | "• <\(.url)|\(.title)>" + (if any(.statusCheckRollup[]?; (.conclusion // .state) | IN("FAILURE", "ERROR", "TIMED_OUT")) then " (CI failing)" else "" end)')
+          if [ -z "$prs" ]; then
+            echo "No open Dependabot PRs."
+            exit 0
+          fi
+          text="$REVIEWERS Dependabot PRs ready to review (${GITHUB_REPOSITORY#*/})"$'\n'"$prs"
+          jq -n --arg text "$text" '{text: $text}' \
+            | curl -fsS -X POST -H 'Content-Type: application/json' --data @- "$SLACK_WEBHOOK_URL"
