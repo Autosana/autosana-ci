@@ -1,9 +1,9 @@
 name: Dependabot digest
 
-# Every Friday, four hours after Dependabot's 6am PT run, posts this repo's open
-# Dependabot PRs to #pull-requests-for-review. By then minor and patch updates that pass
-# CI have merged themselves, so anything still open needs a person: a major update or a
-# failing check. Quiet weeks post nothing.
+# Every Friday, a few hours after Dependabot's 6am PT run, posts this repo's Dependabot
+# PRs that need a person to #pull-requests-for-review: majors (no auto-merge) and any
+# with a failing check. PRs still waiting to auto-merge are skipped, since they merge on
+# their own. Quiet weeks post nothing.
 on:
   schedule:
     - cron: "0 17 * * 5" # Fridays, 10am PDT (9am PST)
@@ -26,8 +26,11 @@ jobs:
           REVIEWERS: "<@U08NR4GT37H>"
         run: |
           prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --author app/dependabot --state open \
-            --json title,url,statusCheckRollup \
-            --jq '.[] | "• <\(.url)|\(.title)>" + (if any(.statusCheckRollup[]?; (.conclusion // .state) | IN("FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "STARTUP_FAILURE", "ACTION_REQUIRED")) then " (CI failing)" else "" end)')
+            --json title,url,autoMergeRequest,statusCheckRollup \
+            --jq '.[]
+              | (any(.statusCheckRollup[]?; (.conclusion // .state) | IN("FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "STARTUP_FAILURE", "ACTION_REQUIRED"))) as $failing
+              | select(.autoMergeRequest == null or $failing)
+              | "• <\(.url)|\(.title)>" + (if $failing then " (CI failing)" else "" end)')
           if [ -z "$prs" ]; then
             echo "No open Dependabot PRs."
             exit 0
