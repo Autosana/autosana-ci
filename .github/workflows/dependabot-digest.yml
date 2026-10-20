@@ -1,11 +1,11 @@
 name: Dependabot digest
 
-# Every Tuesday, posts this repo's open Dependabot PRs to #pull-requests-for-review.
-# Minor and patch updates that pass CI merge themselves on Monday, so anything still
+# Every Monday, posts this repo's open Dependabot PRs to #pull-requests-for-review.
+# Minor and patch updates that pass CI merge themselves on Friday, so anything still
 # open needs a person: a major update or a failing check. Quiet weeks post nothing.
 on:
   schedule:
-    - cron: "0 16 * * 2" # Tuesdays, 9am PT
+    - cron: "0 16 * * 1" # Mondays, 9am PDT (8am PST)
   workflow_dispatch:
 
 permissions:

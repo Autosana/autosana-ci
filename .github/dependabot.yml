@@ -1,4 +1,4 @@
-# Weekly version updates into staging; they ship with the next release.
+# Weekly version updates into staging, Friday mornings PT; they ship with the next release.
 # The action itself is a composite shell script with no package dependencies, so only
 # the actions used by our workflows are tracked. Minor and patch updates come grouped
 # and merge on their own once the required checks pass
@@ -10,7 +10,9 @@ updates:
     target-branch: "staging"
     schedule:
       interval: "weekly"
-      day: "monday"
+      day: "friday"
+      time: "08:00"
+      timezone: "America/Los_Angeles"
     groups:
       github-actions:
         update-types: ["minor", "patch"]
