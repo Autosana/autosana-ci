@@ -1,0 +1,32 @@
+name: Dependabot auto-merge
+
+# Turns on auto-merge for Dependabot's minor and patch version updates into staging,
+# so they merge once the required checks pass. Majors, and security updates (which
+# Dependabot always opens against main), stay for a person to review.
+#
+# Merges made with GITHUB_TOKEN don't start other workflows, so push-triggered staging
+# workflows skip these merges and pick them up on the next push to staging. The required
+# checks still run on each Dependabot PR, and again on the release PR into main.
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.base.ref == 'staging'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Read the update type
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Auto-merge minor and patch updates
+        if: steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
