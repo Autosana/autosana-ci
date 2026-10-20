@@ -26,7 +26,7 @@ jobs:
         run: |
           prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --author app/dependabot --state open \
             --json title,url,statusCheckRollup \
-            --jq '.[] | "• <\(.url)|\(.title)>" + (if any(.statusCheckRollup[]?; (.conclusion // .state) | IN("FAILURE", "ERROR", "TIMED_OUT")) then " (CI failing)" else "" end)')
+            --jq '.[] | "• <\(.url)|\(.title)>" + (if any(.statusCheckRollup[]?; (.conclusion // .state) | IN("FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "STARTUP_FAILURE", "ACTION_REQUIRED")) then " (CI failing)" else "" end)')
           if [ -z "$prs" ]; then
             echo "No open Dependabot PRs."
             exit 0

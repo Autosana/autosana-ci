@@ -3,6 +3,10 @@ name: Dependabot auto-merge
 # Turns on auto-merge for Dependabot's minor and patch version updates into staging,
 # so they merge once the required checks pass. Majors, and security updates (which
 # Dependabot always opens against main), stay for a person to review.
+#
+# Merges made with GITHUB_TOKEN don't start other workflows, so push-triggered staging
+# workflows skip these merges and pick them up on the next push to staging. The required
+# checks still run on each Dependabot PR, and again on the release PR into main.
 on: pull_request
 
 permissions:
