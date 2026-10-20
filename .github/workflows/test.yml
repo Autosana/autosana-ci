@@ -90,7 +90,7 @@ jobs:
           tail -n 10 coverage-test-output.txt
 
       - name: Set up Python (for diff-cover)
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         continue-on-error: true
         with:
           python-version: "3.13"
