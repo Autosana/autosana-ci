@@ -1,4 +1,4 @@
-# Daily version updates into staging, 6am PT; they ship with the next release.
+# Version updates into staging every weekday at 6am PT; they ship with the next release.
 # The action itself is a composite shell script with no package dependencies, so only
 # the actions used by our workflows are tracked. Minor and patch updates come grouped
 # and merge on their own once the required checks pass
