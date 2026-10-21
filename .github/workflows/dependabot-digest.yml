@@ -1,12 +1,12 @@
 name: Dependabot digest
 
-# Every Friday, a few hours after Dependabot's 6am PT run, posts this repo's Dependabot
+# Every day, a few hours after Dependabot's 6am PT run, posts this repo's Dependabot
 # PRs that need a person to #pull-requests-for-review: majors (no auto-merge) and any
 # with a failing check. PRs still waiting to auto-merge are skipped, since they merge on
-# their own. Quiet weeks post nothing.
+# their own. Quiet days post nothing.
 on:
   schedule:
-    - cron: "0 17 * * 5" # Fridays, 10am PDT (9am PST)
+    - cron: "0 17 * * *" # Daily, 10am PDT (9am PST)
   workflow_dispatch:
 
 permissions:
