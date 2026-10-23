@@ -82,7 +82,7 @@ inputs:
     description: "Comma-separated code-managed flow keys to run from the checked-out commit. Can be combined with suite-keys and folder-paths, but not with ID or label selectors. Not supported for Chrome extension uploads."
     required: false
   folder-ids:
-    description: "Comma-separated dashboard folder UUIDs to run. Runs every suite and flow in those folders and the folders inside them. Combine with suite-ids, flow-ids, or labels to add to the selection. Not supported for Chrome extension uploads."
+    description: "Comma-separated dashboard folder UUIDs to run (Copy folder ID in the folder's menu on the Flows page). Runs every suite and flow in those folders and the folders inside them. Combine with suite-ids, flow-ids, or labels to add to the selection. Not supported for Chrome extension uploads."
     required: false
   folder-paths:
     description: "Comma-separated code-managed folder paths relative to .autosana/ (e.g., 'Auth/Onboarding') to run from the checked-out commit. Can be combined with suite-keys and flow-keys, but not with ID or label selectors. Not supported for Chrome extension uploads."

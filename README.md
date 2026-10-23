@@ -69,7 +69,7 @@ Shared optional inputs:
 - `flow-ids`: Comma-separated flow UUIDs to run after a web or mobile upload
 - `suite-keys`: Comma-separated code-managed suite keys to run from the checked-out commit
 - `flow-keys`: Comma-separated code-managed flow keys to run from the checked-out commit
-- `folder-ids`: Comma-separated dashboard folder UUIDs to run after a web or mobile upload. Runs every suite and flow in those folders and the folders inside them. Combine with `suite-ids`/`flow-ids`/`labels` to add to the selection.
+- `folder-ids`: Comma-separated dashboard folder UUIDs to run after a web or mobile upload. Copy an ID from the folder's **⋯** menu on the Flows page (**Copy folder ID**). Runs every suite and flow in those folders and the folders inside them. Combine with `suite-ids`/`flow-ids`/`labels` to add to the selection.
 - `folder-paths`: Comma-separated code-managed folder paths relative to `.autosana/`, such as `Auth/Onboarding`, to run from the checked-out commit
 - `labels`: Comma-separated label names to run after a web or mobile upload (e.g. `smoke` or `smoke,regression`). Runs the union of every suite and flow carrying any of the given labels, so you can replace long `flow-ids` lists with a single label. Combine with `suite-ids`/`flow-ids` to add to the selection. If no suite or flow matches, the action fails.
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
