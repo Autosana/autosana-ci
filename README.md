@@ -70,10 +70,12 @@ Shared optional inputs:
 - `flow-ids`: Comma-separated flow UUIDs to run after a web or mobile upload
 - `suite-keys`: Comma-separated code-managed suite keys to run from the checked-out commit
 - `flow-keys`: Comma-separated code-managed flow keys to run from the checked-out commit
+- `folder-ids`: Comma-separated dashboard folder UUIDs to run after a web or mobile upload. Copy an ID from the folder's **⋯** menu on the Flows page (**Copy folder ID**). Runs every suite and flow in those folders and the folders inside them. Combine with `suite-ids`/`flow-ids`/`labels` to add to the selection.
+- `folder-paths`: Comma-separated code-managed folder paths relative to `.autosana/`, such as `Auth/Onboarding`, to run from the checked-out commit
 - `labels`: Comma-separated label names to run after a web or mobile upload (e.g. `smoke` or `smoke,regression`). Runs the union of every suite and flow carrying any of the given labels, so you can replace long `flow-ids` lists with a single label. Combine with `suite-ids`/`flow-ids` to add to the selection. If no suite or flow matches, the action fails.
 - `web-browser`: Web only. Playwright engine to run on — `chrome` (default, real Google Chrome with proprietary codecs and DRM), `chromium` (bundled Chromium engine, no codecs / DRM), `firefox`, or `edge`. Aliases accepted: `msedge` → `edge`. Ignored for mobile.
-- `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires a flow, suite, or label selector. Currently unsupported with `suite-keys`.
-- `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when any flow, suite, or label selector triggers tests.
+- `dependencies`: Web runs only. A JSON array overriding the web app's default Chrome extension loadout for upload-triggered automations and direct runs. Omit it to inherit defaults, pass `'[]'` to load no extensions, or provide extension app UUIDs and optional build pins such as `'["app-uuid",{"app_id":"app-uuid","app_build_id":"build-uuid"}]'`. Requires a flow, suite, folder, or label selector. Currently unsupported with `suite-keys` and `folder-paths`.
+- `wait`: Whether to wait for triggered flows to finish and gate the job on their result. Defaults to `true`. Set to `false` to trigger the flows, print their run links, and exit immediately without blocking CI (fire-and-forget). Applies when any flow, suite, folder, or label selector triggers tests.
 - `enable-ios-keychain-access-group-remapping`: iOS `.ipa` only. Persist whether future IPA uploads should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit it to inherit the app's saved preference.
 - `physical-device`: Mobile runs only. Set to `true` to run on real hardware. Defaults to `false`.
 - `device-model`: Mobile runs only. Model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`. Two-device flows use it for both devices.
@@ -84,8 +86,10 @@ Direct test runs resolve code-managed flows, suites, and labels from the exact
 checked-out commit. GitHub repository metadata and a full commit SHA are required
 when any test selector is provided.
 
-Use stable YAML keys instead of Autosana UUIDs for code-managed targets. Flow and
-suite keys can be combined with each other, but not with ID or label selectors:
+Use stable YAML keys instead of Autosana UUIDs for code-managed targets. Flow keys,
+suite keys, and folder paths can be combined with each other, but not with ID or
+label selectors. A folder path runs every suite and flow filed in that directory
+of `.autosana/` and the directories inside it:
 
 ```yaml
 - uses: autosana/autosana-ci@main
@@ -96,6 +100,7 @@ suite keys can be combined with each other, but not with ID or label selectors:
     build-path: build/app-release.apk
     flow-keys: "auth/login,checkout"
     suite-keys: "smoke"
+    folder-paths: "Auth/Onboarding"
 ```
 
 Device inputs apply when any flow, suite, or label selector triggers a run. Use
@@ -206,7 +211,7 @@ dependencies: >-
     "app_build_id":"33333333-3333-3333-3333-333333333333"}]
 ```
 
-This input is not supported with `suite-keys`, mobile, or Chrome extension uploads.
+This input is not supported with `suite-keys`, `folder-paths`, mobile, or Chrome extension uploads.
 
 ### Run location
 

@@ -29,6 +29,8 @@ _common_setup() {
     export SUITE_KEYS=""
     export FLOW_KEYS=""
     export LABELS=""
+    export FOLDER_IDS=""
+    export FOLDER_PATHS=""
     export DEPENDENCIES=""
     export PHYSICAL_DEVICE="false"
     export DEVICE_MODEL=""
