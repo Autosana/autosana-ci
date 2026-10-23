@@ -143,6 +143,57 @@ setup() {
     assert_success
 }
 
+@test "folder ids run the dashboard folders at the built commit" {
+    export FOLDER_IDS=" folder-1, folder-2 "
+    export LABELS="smoke"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/folder-id-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial "Running Flows"
+    run jq -e '
+      .folder_ids == ["folder-1", "folder-2"]
+      and .labels == ["smoke"]
+      and .ref == "0123456789abcdef0123456789abcdef01234567"
+      and (has("folder_paths") | not)
+      and (has("flow_keys") | not)
+    ' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "folder paths run the repo folders at the built commit" {
+    export FOLDER_PATHS=$'\tAuth/Onboarding, Smoke Tests \r'
+    export SUITE_KEYS="smoke"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/folder-path-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '
+      .folder_paths == ["Auth/Onboarding", "Smoke Tests"]
+      and .suite_keys == ["smoke"]
+      and .ref == "0123456789abcdef0123456789abcdef01234567"
+      and (has("folder_ids") | not)
+      and (has("flow_ids") | not)
+    ' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "runs without folder selectors send no folder fields" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/no-folder-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '(has("folder_ids") | not) and (has("folder_paths") | not)' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
 @test "android device inputs produce the canonical nested device payload" {
     export FLOW_IDS="uuid-1"
     export PHYSICAL_DEVICE="false"

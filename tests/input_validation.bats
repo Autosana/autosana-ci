@@ -216,13 +216,18 @@ setup() {
     export BUILD_PATH="$BATS_TEST_TMPDIR/extension.zip"
     touch "$BUILD_PATH"
 
-    local selectors=("FLOW_IDS=flow-1" "SUITE_IDS=suite-1" "FLOW_KEYS=login" "SUITE_KEYS=smoke" "LABELS=smoke")
+    local selectors=(
+        "FLOW_IDS=flow-1" "SUITE_IDS=suite-1" "FLOW_KEYS=login" "SUITE_KEYS=smoke" "LABELS=smoke"
+        "FOLDER_IDS=folder-1" "FOLDER_PATHS=Auth"
+    )
     for selector in "${selectors[@]}"; do
         export FLOW_IDS=""
         export SUITE_IDS=""
         export FLOW_KEYS=""
         export SUITE_KEYS=""
         export LABELS=""
+        export FOLDER_IDS=""
+        export FOLDER_PATHS=""
         export "${selector?}"
 
         run bash "$ENTRYPOINT"
@@ -242,6 +247,10 @@ setup() {
         "SUITE_KEYS=smoke FLOW_IDS=flow-1"
         "SUITE_KEYS=smoke SUITE_IDS=suite-1"
         "SUITE_KEYS=smoke LABELS=regression"
+        "FLOW_KEYS=login FOLDER_IDS=folder-1"
+        "FOLDER_PATHS=Auth FLOW_IDS=flow-1"
+        "FOLDER_PATHS=Auth FOLDER_IDS=folder-1"
+        "FOLDER_PATHS=Auth LABELS=smoke"
     )
 
     for selector_pair in "${selector_pairs[@]}"; do
@@ -250,12 +259,14 @@ setup() {
         export FLOW_KEYS=""
         export SUITE_KEYS=""
         export LABELS=""
+        export FOLDER_IDS=""
+        export FOLDER_PATHS=""
         eval "export $selector_pair"
 
         run bash "$ENTRYPOINT"
 
         assert_failure
-        assert_output --partial "flow-keys and suite-keys cannot be combined with flow-ids, suite-ids, or labels"
+        assert_output --partial "flow-keys, suite-keys and folder-paths cannot be combined with flow-ids, suite-ids, folder-ids or labels"
         refute_output --partial "Starting upload process"
     done
 }
@@ -379,7 +390,7 @@ setup() {
     export DEPENDENCIES='[]'
     run bash "$ENTRYPOINT"
     assert_failure
-    assert_output --partial "'dependencies' requires a flow, suite, or label selector"
+    assert_output --partial "'dependencies' requires a flow, suite, folder, or label selector"
     refute_output --partial "Registering web build"
 }
 
@@ -408,8 +419,37 @@ setup() {
     run bash "$ENTRYPOINT"
 
     assert_failure
-    assert_output --partial "'dependencies' cannot be combined with suite-keys"
+    assert_output --partial "'dependencies' cannot be combined with suite-keys or folder-paths"
     refute_output --partial "Registering web build"
+}
+
+@test "web folder-path runs reject dependencies that the backend cannot apply" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FOLDER_PATHS="Auth/Onboarding"
+    export DEPENDENCIES='[]'
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "'dependencies' cannot be combined with suite-keys or folder-paths"
+    refute_output --partial "Registering web build"
+}
+
+@test "web folder-id runs accept dependencies" {
+    export PLATFORM="web"
+    export APP_ID="my-app"
+    export URL="https://example.com"
+    export FOLDER_IDS="folder-1"
+    export DEPENDENCIES='[]'
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial '"folder_ids"'
+    assert_output --partial '"dependencies": []'
 }
 
 # --- Valid inputs pass validation ---

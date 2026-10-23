@@ -28,11 +28,16 @@ if [ -z "$AUTOSANA_KEY" ] || [ -z "$PLATFORM" ]; then
   exit 1
 fi
 
+has_test_selector() {
+  [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$LABELS" ] || [ -n "$FOLDER_IDS" ] \
+    || [ -n "$SUITE_KEYS" ] || [ -n "$FLOW_KEYS" ] || [ -n "$FOLDER_PATHS" ]
+}
+
 KEY_SELECTOR_MODE=false
-if [ -n "$FLOW_KEYS" ] || [ -n "$SUITE_KEYS" ]; then
+if [ -n "$FLOW_KEYS" ] || [ -n "$SUITE_KEYS" ] || [ -n "$FOLDER_PATHS" ]; then
   KEY_SELECTOR_MODE=true
-  if [ -n "$FLOW_IDS" ] || [ -n "$SUITE_IDS" ] || [ -n "$LABELS" ]; then
-    echo "❌ ERROR: flow-keys and suite-keys cannot be combined with flow-ids, suite-ids, or labels."
+  if [ -n "$FLOW_IDS" ] || [ -n "$SUITE_IDS" ] || [ -n "$LABELS" ] || [ -n "$FOLDER_IDS" ]; then
+    echo "❌ ERROR: flow-keys, suite-keys and folder-paths cannot be combined with flow-ids, suite-ids, folder-ids or labels."
     exit 1
   fi
 fi
@@ -123,7 +128,7 @@ elif [ "$PLATFORM" = "chrome-extension" ]; then
     exit 1
   fi
 
-  if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$SUITE_KEYS" ] || [ -n "$FLOW_KEYS" ] || [ -n "$LABELS" ]; then
+  if has_test_selector; then
     echo "❌ ERROR: Chrome extension uploads cannot trigger tests directly."
     echo "   Upload and attach the extension, then run tests in a separate 'platform: web' Action step."
     echo "   The web app's default extensions or 'dependencies' input will control the test loadout."
@@ -198,15 +203,16 @@ if [ -n "${DEPENDENCIES:-}" ]; then
     exit 1
   fi
 
-  # The backend's explicit suite-key path cannot apply per-run dependency
-  # overrides yet. Fail instead of silently running with the app defaults.
-  if [ -n "$SUITE_KEYS" ]; then
-    echo "❌ ERROR: 'dependencies' cannot be combined with suite-keys."
+  # The backend's explicit suite-key path, which folder paths also take, cannot
+  # apply per-run dependency overrides yet. Fail instead of silently running
+  # with the app defaults.
+  if [ -n "$SUITE_KEYS" ] || [ -n "$FOLDER_PATHS" ]; then
+    echo "❌ ERROR: 'dependencies' cannot be combined with suite-keys or folder-paths."
     exit 1
   fi
 
-  if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$SUITE_KEYS" ] && [ -z "$FLOW_KEYS" ] && [ -z "$LABELS" ]; then
-    echo "❌ ERROR: 'dependencies' requires a flow, suite, or label selector."
+  if ! has_test_selector; then
+    echo "❌ ERROR: 'dependencies' requires a flow, suite, folder, or label selector."
     exit 1
   fi
 
@@ -274,7 +280,7 @@ echo ""
 
 # Direct test selection is commit-scoped. Upload-only runs retain their existing
 # behavior, but a selected run must identify the exact target revision.
-if [ -n "$SUITE_IDS" ] || [ -n "$FLOW_IDS" ] || [ -n "$SUITE_KEYS" ] || [ -n "$FLOW_KEYS" ] || [ -n "$LABELS" ]; then
+if has_test_selector; then
   if [[ ! "$COMMIT_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
     echo "❌ ERROR: Direct test runs require a full Git commit SHA."
     echo "   Target commit: ${COMMIT_SHA:-not set}"
@@ -707,7 +713,7 @@ fi
 # FLOW EXECUTION (optional — runs when an ID, key, or label selector is provided)
 # ============================================================
 
-if [ -z "$SUITE_IDS" ] && [ -z "$FLOW_IDS" ] && [ -z "$SUITE_KEYS" ] && [ -z "$FLOW_KEYS" ] && [ -z "$LABELS" ]; then
+if ! has_test_selector; then
   exit 0
 fi
 
@@ -838,6 +844,19 @@ else
   SUITE_KEYS_JSON="[]"
 fi
 
+if [ -n "$FOLDER_IDS" ]; then
+  FOLDER_IDS_JSON=$(echo "$FOLDER_IDS" | tr -d ' ' | tr ',' '\n' | sed '/^$/d' | jq -R . | jq -s .)
+else
+  FOLDER_IDS_JSON="[]"
+fi
+
+# Folder names can contain spaces, so trim only around each path, like keys.
+if [ -n "$FOLDER_PATHS" ]; then
+  FOLDER_PATHS_JSON=$(echo "$FOLDER_PATHS" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d' | jq -R . | jq -s .)
+else
+  FOLDER_PATHS_JSON="[]"
+fi
+
 # Labels resolve server-side to the union of matching suites + flows. We only
 # trim surrounding whitespace around each name (not internal spaces) since,
 # unlike UUIDs, a label name could legitimately contain spaces.
@@ -896,12 +915,16 @@ if [ "$PLATFORM" = "web" ]; then
     --argjson flow_keys "$FLOW_KEYS_JSON" \
     --argjson suite_keys "$SUITE_KEYS_JSON" \
     --argjson labels "$LABELS_JSON" \
+    --argjson folder_ids "$FOLDER_IDS_JSON" \
+    --argjson folder_paths "$FOLDER_PATHS_JSON" \
     --argjson dependencies "$DEPENDENCIES_JSON" \
     '{app_id: $app_id, repo_full_name: $repo_full_name, ref: $ref}
      + (if $app_build_id != "" then {app_build_id: $app_build_id} else {} end)
      + (if $key_selector_mode == "true"
         then {flow_keys: $flow_keys, suite_keys: $suite_keys}
-        else {flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels} end)
+          + (if $folder_paths != [] then {folder_paths: $folder_paths} else {} end)
+        else {flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels}
+          + (if $folder_ids != [] then {folder_ids: $folder_ids} else {} end) end)
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
      + (if $web_browser != "" then {web_browser: $web_browser} else {} end)
@@ -928,11 +951,15 @@ else
     --argjson flow_keys "$FLOW_KEYS_JSON" \
     --argjson suite_keys "$SUITE_KEYS_JSON" \
     --argjson labels "$LABELS_JSON" \
+    --argjson folder_ids "$FOLDER_IDS_JSON" \
+    --argjson folder_paths "$FOLDER_PATHS_JSON" \
     '{bundle_id: $bundle_id, platform: $platform, repo_full_name: $repo_full_name, ref: $ref}
      + (if $app_id != "" then {app_id: $app_id} else {} end)
      + (if $key_selector_mode == "true"
         then {flow_keys: $flow_keys, suite_keys: $suite_keys}
-        else {flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels} end)
+          + (if $folder_paths != [] then {folder_paths: $folder_paths} else {} end)
+        else {flow_ids: $flow_ids, suite_ids: $suite_ids, labels: $labels}
+          + (if $folder_ids != [] then {folder_ids: $folder_ids} else {} end) end)
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
      + (if $devices_provided == "true"
