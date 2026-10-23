@@ -20,6 +20,7 @@ _common_setup() {
     export URL=""
     export APP_NAME=""
     export ENVIRONMENT=""
+    export LOCATION=""
     export AUTOSANA_API_URL="http://mock-api.local"
     export VARIABLES=""
     export ENABLE_IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING=""

@@ -238,6 +238,14 @@ if [ -n "${DEPENDENCIES:-}" ]; then
   DEPENDENCIES_JSON=$(jq -c . <<< "$DEPENDENCIES")
 fi
 
+# Run location: an ISO country code. The backend checks it against the platform and device.
+LOCATION_CODE=$(printf '%s' "${LOCATION:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:lower:]' '[:upper:]')
+if [ -n "$LOCATION_CODE" ] && [ "$PLATFORM" = "chrome-extension" ]; then
+  echo "❌ ERROR: 'location' is not supported for Chrome extension uploads."
+  echo "   Set it on the 'platform: web' Action step that runs the tests."
+  exit 1
+fi
+
 # A deployment can target a different commit from the trusted workflow checkout.
 # Keep checkout-based detection for other events (including intentional custom refs).
 PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "${GITHUB_EVENT_PATH:-}" 2>/dev/null || true)
@@ -305,10 +313,12 @@ if [ "$PLATFORM" = "web" ]; then
     --arg variables "$VARIABLES" \
     --arg dependencies_provided "$DEPENDENCIES_PROVIDED" \
     --argjson dependencies "$DEPENDENCIES_JSON" \
+    --arg location "$LOCATION_CODE" \
     '{app_id: $app_id, url: $url, name: $name, commit_sha: $commit_sha, branch_name: $branch_name, repo_full_name: $repo_full_name}
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
-     + (if $dependencies_provided == "true" then {dependencies: $dependencies} else {} end)')
+     + (if $dependencies_provided == "true" then {dependencies: $dependencies} else {} end)
+     + (if $location != "" then {location: $location} else {} end)')
   # kcov-ignore-end
 
   echo "🔄 Registering web build with Autosana..."
@@ -606,6 +616,7 @@ CONFIRM_PAYLOAD=$(jq -n \
   --arg variables "$VARIABLES" \
   --arg keychain_remapping "$KEYCHAIN_REMAPPING_VALUE" \
   --arg app_id "$APP_ID" \
+  --arg location "$LOCATION_CODE" \
   '{
     bundle_id: $bundle_id,
     platform: $platform,
@@ -619,7 +630,8 @@ CONFIRM_PAYLOAD=$(jq -n \
     + (if $variables != "" then {variables: $variables} else {} end)
     + (if $keychain_remapping == "true" then {enable_ios_keychain_access_group_remapping: true}
        elif $keychain_remapping == "false" then {enable_ios_keychain_access_group_remapping: false}
-       else {} end)')
+       else {} end)
+    + (if $location != "" then {location: $location} else {} end)')
 # kcov-ignore-end
 
 echo "   Request Payload:"
@@ -887,6 +899,7 @@ if [ "$PLATFORM" = "web" ]; then
     --arg environment "$ENVIRONMENT" \
     --arg variables "$VARIABLES" \
     --arg web_browser "$WEB_BROWSER" \
+    --arg location "$LOCATION_CODE" \
     --arg dependencies_provided "$DEPENDENCIES_PROVIDED" \
     --arg key_selector_mode "$KEY_SELECTOR_MODE" \
     --arg repo_full_name "$REPO_FULL_NAME" \
@@ -905,7 +918,8 @@ if [ "$PLATFORM" = "web" ]; then
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
      + (if $web_browser != "" then {web_browser: $web_browser} else {} end)
-     + (if $dependencies_provided == "true" then {dependencies: $dependencies} else {} end)')
+     + (if $dependencies_provided == "true" then {dependencies: $dependencies} else {} end)
+     + (if $location != "" then {location: $location} else {} end)')
   # kcov-ignore-end
 else
   # kcov-ignore-start
@@ -919,6 +933,7 @@ else
     --arg device_model "$DEVICE_MODEL_PAYLOAD" \
     --arg os_version "$OS_VERSION_PAYLOAD" \
     --arg devices_provided "$DEVICES_PROVIDED" \
+    --arg location "$LOCATION_CODE" \
     --arg key_selector_mode "$KEY_SELECTOR_MODE" \
     --arg repo_full_name "$REPO_FULL_NAME" \
     --arg ref "$COMMIT_SHA" \
@@ -941,7 +956,8 @@ else
         then {device: ({physical: ($physical_device == "true")}
           + (if $device_model != "" then {model: $device_model} else {} end)
           + (if $os_version != "" then {os_version: $os_version} else {} end))}
-        else {} end)')
+        else {} end)
+     + (if $location != "" then {location: $location} else {} end)')
   # kcov-ignore-end
 fi
 
