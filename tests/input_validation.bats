@@ -145,12 +145,12 @@ setup() {
     assert_output --partial "Missing required inputs for mobile"
 }
 
-@test "android platform missing BUILD_PATH exits 1" {
+@test "android platform with no BUILD_PATH and no test selector exits 1" {
     export PLATFORM="android"
     export BUILD_PATH=""
     run bash "$ENTRYPOINT"
     assert_failure
-    assert_output --partial "Missing required inputs for mobile"
+    assert_output --partial "build-path is empty and no tests are selected"
 }
 
 @test "ios platform missing BUNDLE_ID exits 1" {
@@ -161,12 +161,12 @@ setup() {
     assert_output --partial "Missing required inputs for mobile"
 }
 
-@test "ios platform missing BUILD_PATH exits 1" {
+@test "ios platform with no BUILD_PATH and no test selector exits 1" {
     export PLATFORM="ios"
     export BUILD_PATH=""
     run bash "$ENTRYPOINT"
     assert_failure
-    assert_output --partial "Missing required inputs for mobile"
+    assert_output --partial "build-path is empty and no tests are selected"
 }
 
 # --- Chrome extension validation ---

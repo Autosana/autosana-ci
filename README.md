@@ -180,9 +180,56 @@ By default, when you pass a flow, suite, or label selector, the action waits for
     wait: false
 ```
 
+### Run tests without uploading
+
+For mobile, leave `build-path` empty to run the selected tests on the build
+already uploaded for this commit. Use this when several jobs of one workflow
+test the same build on different devices: one job uploads, the others only run
+tests. Build in a separate job that the test jobs `needs:`, so the
+other jobs wait only for the upload, not the build. A job without a build waits up to 10 minutes from the
+start of the action for that upload, then fails with `No build for commit <sha>`. If the commit already has a build,
+for example from an earlier run of the workflow, it uses that build at once. It
+needs a flow, suite, folder, or label selector, and ignores the upload-only
+inputs `name` and `enable-ios-keychain-access-group-remapping`.
+
+```yaml
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      # ... build build/MyApp.app.zip ...
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: build/MyApp.app.zip
+
+  test:
+    needs: build # start testing only once the build exists
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        device:
+          - { model: "iPhone 17 Pro", upload: true }
+          - { model: "iPad Pro 13-inch (M5)" }
+    steps:
+      - uses: actions/download-artifact@v4
+        if: matrix.device.upload
+        with:
+          name: ios-build
+          path: build
+      - uses: autosana/autosana-ci@main
+        with:
+          api-key: ${{ secrets.AUTOSANA_KEY }}
+          platform: ios
+          bundle-id: com.example.app
+          build-path: ${{ matrix.device.upload && 'build/MyApp.app.zip' || '' }}
+          device-model: ${{ matrix.device.model }}
+          labels: smoke
+```
+
 Platform-specific required inputs:
 
-- Mobile (`android` or `ios`): `bundle-id`, `build-path`
+- Mobile (`android` or `ios`): `bundle-id`, and `build-path` unless the step selects tests to run on this commit's existing build
 - Chrome extension (`chrome-extension`): `bundle-id`, `build-path` (a `.zip` containing the unpacked Manifest V3 extension)
 - Web (`web`): `app-id`, `url`
 
