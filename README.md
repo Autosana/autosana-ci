@@ -180,9 +180,35 @@ By default, when you pass a flow, suite, or label selector, the action waits for
     wait: false
 ```
 
+### Run tests without uploading
+
+For mobile, leave `build-path` empty to run the selected tests on the build
+already uploaded for this commit. Use this when several jobs of one workflow
+test the same build on different devices: one job uploads, the others only run
+tests. A job without a build waits up to 10 minutes for the upload to finish,
+then fails with `No build for commit <sha>`. It needs a flow, suite, folder, or
+label selector.
+
+```yaml
+strategy:
+  matrix:
+    device:
+      - { model: "iPhone 17 Pro", upload: true }
+      - { model: "iPad Pro 13-inch (M5)" }
+steps:
+  - uses: autosana/autosana-ci@main
+    with:
+      api-key: ${{ secrets.AUTOSANA_KEY }}
+      platform: ios
+      bundle-id: com.example.app
+      build-path: ${{ matrix.device.upload && './build/MyApp.app.zip' || '' }}
+      device-model: ${{ matrix.device.model }}
+      labels: smoke
+```
+
 Platform-specific required inputs:
 
-- Mobile (`android` or `ios`): `bundle-id`, `build-path`
+- Mobile (`android` or `ios`): `bundle-id`, and `build-path` unless the step selects tests to run on this commit's existing build
 - Chrome extension (`chrome-extension`): `bundle-id`, `build-path` (a `.zip` containing the unpacked Manifest V3 extension)
 - Web (`web`): `app-id`, `url`
 

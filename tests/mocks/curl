@@ -7,6 +7,10 @@
 #
 # Endpoints: START_UPLOAD, CONFIRM_UPLOAD, UPLOAD_WEB, UPLOAD_FILE,
 #            RUN_FLOWS, POLL_STATUS
+#
+#   MOCK_CURL_CALL_LOG                - file that gets one endpoint name per call
+#   MOCK_RUN_FLOWS_STATUS_SEQUENCE    - comma-separated RUN_FLOWS statuses, one per
+#                                       call; the last one repeats
 
 METHOD="GET"
 URL=""
@@ -42,6 +46,10 @@ case "$URL" in
         ;;
 esac
 
+if [ -n "${MOCK_CURL_CALL_LOG:-}" ]; then
+    echo "$ENDPOINT" >> "$MOCK_CURL_CALL_LOG"
+fi
+
 if [ -n "${MOCK_CURL_CAPTURE_DIR:-}" ] && [ -n "$DATA" ]; then
     mkdir -p "$MOCK_CURL_CAPTURE_DIR"
     printf '%s' "$DATA" > "$MOCK_CURL_CAPTURE_DIR/$ENDPOINT.json"
@@ -52,6 +60,18 @@ status_var="MOCK_CURL_STATUS_${ENDPOINT}"
 body_var="MOCK_CURL_BODY_${ENDPOINT}"
 STATUS="${!status_var:-200}"
 BODY="${!body_var:-}"
+
+if [ "$ENDPOINT" = "RUN_FLOWS" ] && [ -n "${MOCK_RUN_FLOWS_STATUS_SEQUENCE:-}" ]; then
+    IFS=',' read -ra statuses <<< "$MOCK_RUN_FLOWS_STATUS_SEQUENCE"
+    run_count=$(grep -cx RUN_FLOWS "$MOCK_CURL_CALL_LOG")
+    index=$((run_count - 1))
+    [ "$index" -ge "${#statuses[@]}" ] && index=$((${#statuses[@]} - 1))
+    STATUS="${statuses[$index]}"
+    if [ "$STATUS" = "404" ]; then
+        default_404='{"detail":"No app build found for commit '"'"'abcdef012345'"'"'; upload a build for this ref first"}'
+        BODY="${MOCK_RUN_FLOWS_404_BODY:-$default_404}"
+    fi
+fi
 
 # Default responses per endpoint
 if [ -z "$BODY" ]; then
