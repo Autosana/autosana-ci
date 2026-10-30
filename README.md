@@ -186,8 +186,10 @@ For mobile, leave `build-path` empty to run the selected tests on the build
 already uploaded for this commit. Use this when several jobs of one workflow
 test the same build on different devices: one job uploads, the others only run
 tests. A job without a build waits up to 10 minutes for the upload to finish,
-then fails with `No build for commit <sha>`. It needs a flow, suite, folder, or
-label selector.
+then fails with `No build for commit <sha>`. If the commit already has a build,
+for example from an earlier run of the workflow, it uses that build at once. It
+needs a flow, suite, folder, or label selector, and ignores the upload-only
+inputs `name` and `enable-ios-keychain-access-group-remapping`.
 
 ```yaml
 strategy:

@@ -412,6 +412,11 @@ fi
 # ============================================================
 if [ "$PLATFORM" != "web" ] && [ -z "$BUILD_PATH" ]; then
   echo "⏭️  No build-path: skipping the upload. Tests run on the build uploaded for commit $COMMIT_SHA."
+  for upload_input in "name:$APP_NAME" "enable-ios-keychain-access-group-remapping:$ENABLE_IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING"; do
+    if [ -n "${upload_input#*:}" ]; then
+      echo "⚠️  '${upload_input%%:*}' applies only to uploads; ignoring it because build-path is empty."
+    fi
+  done
   echo ""
 fi
 
@@ -1040,7 +1045,7 @@ while true; do
     echo "   Response: $JSON_RESPONSE"
     exit 1
   fi
-  echo "⏳ Waiting for the build of commit $COMMIT_SHA (attempt $attempt/$BUILD_WAIT_ATTEMPTS)..."
+  echo "⏳ Waiting for the $PLATFORM build of $BUNDLE_ID at commit $COMMIT_SHA (attempt $attempt/$BUILD_WAIT_ATTEMPTS)..."
   attempt=$((attempt + 1))
   sleep "$BUILD_WAIT_INTERVAL"
 done

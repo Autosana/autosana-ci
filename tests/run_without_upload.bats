@@ -35,7 +35,7 @@ setup() {
 
     assert_success
     [ "$(grep -cx RUN_FLOWS "$MOCK_CURL_CALL_LOG")" -eq 3 ]
-    assert_output --partial "Waiting for the build of commit abcdef0123456789abcdef0123456789abcdef01"
+    assert_output --partial "Waiting for the android build of com.example.app at commit abcdef0123456789abcdef0123456789abcdef01"
     assert_output --partial "Triggered 2 flow(s)"
 }
 
@@ -89,4 +89,15 @@ setup() {
     assert_success
     run grep -vx POLL_STATUS "$MOCK_CURL_CALL_LOG"
     assert_output "$(printf 'START_UPLOAD\nUPLOAD_FILE\nCONFIRM_UPLOAD\nRUN_FLOWS')"
+}
+
+@test "no build-path warns about upload-only inputs it ignores" {
+    export APP_NAME="My App"
+    export ENABLE_IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING="true"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial "'name' applies only to uploads"
+    assert_output --partial "'enable-ios-keychain-access-group-remapping' applies only to uploads"
 }
