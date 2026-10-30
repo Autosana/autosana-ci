@@ -76,6 +76,7 @@ _common_setup() {
     unset MOCK_CURL_CALL_LOG
     unset MOCK_RUN_FLOWS_STATUS_SEQUENCE
     unset MOCK_RUN_FLOWS_404_BODY
+    unset MOCK_RUN_FLOWS_404_ERROR_CODE
     unset MOCK_GIT_FAIL
     unset MOCK_GIT_SHA
 }

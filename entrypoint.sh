@@ -1016,10 +1016,10 @@ echo "$RUN_PAYLOAD" | _redact_payload | jq '.'
 echo ""
 
 # Another job of the same workflow may still be uploading this commit's build.
-# Retry only the 404s that mean the build or its app does not exist yet.
+# Retry only the 404s the backend tags as build_not_found.
 BUILD_WAIT_INTERVAL=15
 BUILD_WAIT_ATTEMPTS=40
-BUILD_MISSING_PATTERN='App not found\. Upload a build first|No build at commit|No app build found'
+RUN_HEADERS_FILE=$(mktemp)
 attempt=1
 while true; do
   # kcov-ignore-start
@@ -1029,6 +1029,7 @@ while true; do
     -H "X-API-Key: $AUTOSANA_KEY" \
     -H "Content-Type: application/json" \
     -d "$RUN_PAYLOAD" \
+    -D "$RUN_HEADERS_FILE" \
     -w "\nHTTP Status: %{http_code}\n")
   # kcov-ignore-end
 
@@ -1036,7 +1037,7 @@ while true; do
   HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP Status:" | cut -d' ' -f3)
 
   if [ "$PLATFORM" = "web" ] || [ -n "$BUILD_PATH" ] || [ "$HTTP_STATUS" != "404" ] \
-    || ! echo "$JSON_RESPONSE" | jq -r '.detail // empty' 2>/dev/null | grep -qE "$BUILD_MISSING_PATTERN"; then
+    || ! tr -d '\r' < "$RUN_HEADERS_FILE" | grep -qix 'x-autosana-error: build_not_found'; then
     break
   fi
   if [ "$attempt" -ge "$BUILD_WAIT_ATTEMPTS" ]; then
@@ -1049,6 +1050,7 @@ while true; do
   attempt=$((attempt + 1))
   sleep "$BUILD_WAIT_INTERVAL"
 done
+rm -f "$RUN_HEADERS_FILE"
 
 if [ "$HTTP_STATUS" != "200" ]; then
   echo "❌ ERROR: Failed to trigger flows (HTTP $HTTP_STATUS)"

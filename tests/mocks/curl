@@ -10,12 +10,16 @@
 #
 #   MOCK_CURL_CALL_LOG                - file that gets one endpoint name per call
 #   MOCK_RUN_FLOWS_STATUS_SEQUENCE    - comma-separated RUN_FLOWS statuses, one per
-#                                       call; the last one repeats
+#                                       call; the last one repeats. A 404 carries
+#                                       X-Autosana-Error: build_not_found unless
+#                                       MOCK_RUN_FLOWS_404_ERROR_CODE is set to ""
 
 METHOD="GET"
 URL=""
 DATA=""
 HAS_WRITE_OUT=false
+HEADER_FILE=""
+RESPONSE_HEADERS=""
 prev_arg=""
 
 for arg in "$@"; do
@@ -23,6 +27,7 @@ for arg in "$@"; do
         -X) METHOD="$arg" ;;
         -d) DATA="$arg" ;;
         -w) HAS_WRITE_OUT=true ;;
+        -D) HEADER_FILE="$arg" ;;
     esac
     prev_arg="$arg"
     if [[ "$arg" == http* ]]; then
@@ -70,6 +75,8 @@ if [ "$ENDPOINT" = "RUN_FLOWS" ] && [ -n "${MOCK_RUN_FLOWS_STATUS_SEQUENCE:-}" ]
     if [ "$STATUS" = "404" ]; then
         default_404='{"detail":"No app build found for commit '"'"'abcdef012345'"'"'; upload a build for this ref first"}'
         BODY="${MOCK_RUN_FLOWS_404_BODY:-$default_404}"
+        error_code="${MOCK_RUN_FLOWS_404_ERROR_CODE-build_not_found}"
+        [ -n "$error_code" ] && RESPONSE_HEADERS="X-Autosana-Error: $error_code"
     fi
 fi
 
@@ -114,6 +121,10 @@ if [ -z "$BODY" ]; then
             STATUS="404"
             ;;
     esac
+fi
+
+if [ -n "$HEADER_FILE" ]; then
+    printf 'HTTP/1.1 %s\r\n%s\r\n\r\n' "$STATUS" "$RESPONSE_HEADERS" > "$HEADER_FILE"
 fi
 
 # Output response

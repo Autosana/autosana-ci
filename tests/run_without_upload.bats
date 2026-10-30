@@ -39,9 +39,9 @@ setup() {
     assert_output --partial "Triggered 2 flow(s)"
 }
 
-@test "no build-path retries while the app does not exist yet" {
+@test "no build-path retries on the build_not_found code whatever the error text" {
     export MOCK_RUN_FLOWS_STATUS_SEQUENCE="404,200"
-    export MOCK_RUN_FLOWS_404_BODY='{"detail":"App not found. Upload a build first."}'
+    export MOCK_RUN_FLOWS_404_BODY='{"detail":"Some reworded message"}'
 
     run bash "$ENTRYPOINT"
 
@@ -59,9 +59,10 @@ setup() {
     [ "$(grep -cx RUN_FLOWS "$MOCK_CURL_CALL_LOG")" -eq 40 ]
 }
 
-@test "no build-path does not retry a 404 that is not about the build" {
+@test "no build-path does not retry a 404 without the build_not_found code" {
     export MOCK_RUN_FLOWS_STATUS_SEQUENCE="404,200"
-    export MOCK_RUN_FLOWS_404_BODY='{"detail":"No active suites or flows carry the requested label(s): critical"}'
+    export MOCK_RUN_FLOWS_404_BODY='{"detail":"No app build found for commit, but no code"}'
+    export MOCK_RUN_FLOWS_404_ERROR_CODE=""
 
     run bash "$ENTRYPOINT"
 
