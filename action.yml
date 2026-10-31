@@ -60,6 +60,9 @@ inputs:
   location:
     description: "[Web/Android runs] ISO country code (for example MX) that the runs this upload starts route their traffic through. iOS uploads and physical devices refuse a location. Not supported for Chrome extension uploads."
     required: false
+  locale:
+    description: "[Web/Android/iOS runs] Language and region tag (for example de-DE) that the runs this upload starts open the app in. Not supported for Chrome extension uploads."
+    required: false
 
   api-url:
     description: "API base URL (for testing with dev/staging). Default: https://backend.autosana.ai"
@@ -137,6 +140,7 @@ runs:
         APP_NAME: ${{ inputs.name }}
         ENVIRONMENT: ${{ inputs.environment }}
         LOCATION: ${{ inputs.location }}
+        LOCALE: ${{ inputs.locale }}
         AUTOSANA_API_URL: ${{ inputs.api-url }}
         # Build variables
         VARIABLES: ${{ inputs.variables }}
