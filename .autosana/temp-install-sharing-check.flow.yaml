@@ -1,0 +1,5 @@
+key: temp-install-sharing-check
+name: "temp: install sharing check"
+description: Temporary flow that proves the GitHub install still syncs on staging. Delete after verification.
+caching: false
+instructions: Open the home page and verify that a heading is visible.
