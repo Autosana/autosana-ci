@@ -266,3 +266,5 @@ The action detects the target commit automatically:
 An explicit `commit-sha` always takes precedence. Use it for manual reruns targeting a different PR, or when you intentionally want to test a different commit from the deployment. Optional `branch-name` and `repo-full-name` inputs override the corresponding GitHub metadata. `commit-sha` must be a full 40-character SHA when selecting tests. The action pins web runs to the build returned by registration so concurrent previews cannot change the target.
 
 The action gates its own workflow job. A scheduled workflow that tests another PR must publish a check on that PR's head SHA using `checks: write`; the scheduled job itself belongs to the scheduler's commit.
+
+<!-- temp: PR review check on staging, do not merge -->
