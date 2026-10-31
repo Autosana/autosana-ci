@@ -64,7 +64,7 @@ Shared optional inputs:
 - `app-id`: Optional for mobile (required for web, see below). On mobile it is a custom identifier that keeps several apps with the same bundle ID in one environment, for example one per release version (`v7.12.0`). The app is created on first upload. A mobile `app-id` can be up to 64 characters: lowercase letters, numbers, dots, hyphens, and underscores. It must start and end with a letter or number, with no two separators in a row. A web `app-id` allows only lowercase letters, numbers, and hyphens.
 - `environment`: Environment name such as `staging` or `production`. Chrome extensions are organization-wide and ignore this input.
 - `location`: Web and Android runs. ISO country code, such as `MX`, that the runs this upload starts route their traffic through. See [Run location](#run-location).
-- `locale`: Web, Android, and iOS runs. Language and region tag, such as `de-DE`, that the runs this upload starts open the app in. See [Run language and region](#run-language-and-region).
+- `locale`: Web, Android, and iOS runs. Language and region the runs this upload starts use, such as `de-DE`, `fr-CA` or `de`. Physical devices also support it. See [Run language and region](#run-language-and-region).
 - `api-url`: Override the API base URL. Defaults to `https://backend.autosana.ai`
 - `variables`: Key-value variables exposed to flow instructions via `${env:KEY}`. Use `KEY1=VALUE1,KEY2=VALUE2`.
 - `suite-ids`: Comma-separated suite UUIDs to run after a web or mobile upload
@@ -302,9 +302,10 @@ Set `locale` to a language and region tag to open the app in that language:
 
 Use `locale` to change the language the app shows. Use `location` only when servers must see traffic from another country.
 
-Like `location`, it applies to every run the upload starts, and replaces an
-automation's own language. It works for web, Android, and iOS runs. Chrome
-extension uploads do not accept one.
+Like `location`, it applies to every run the upload starts, including PR
+runs, and replaces an automation's own language. A bare language such as `de`
+works too. It works for web, Android, and iOS runs, on emulators, simulators
+and physical devices. Chrome extension uploads do not accept one.
 
 ## Example with optional inputs
 

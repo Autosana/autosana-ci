@@ -61,7 +61,7 @@ inputs:
     description: "[Web/Android runs] ISO country code (for example MX) that the runs this upload starts route their traffic through. iOS uploads and physical devices refuse a location. Not supported for Chrome extension uploads."
     required: false
   locale:
-    description: "[Web/Android/iOS runs] Language and region tag (for example de-DE) that the runs this upload starts open the app in. Not supported for Chrome extension uploads."
+    description: "[Web/Android/iOS runs] Language and region the runs this upload starts use, for example de-DE, fr-CA or de. Physical devices also support it. Not supported for Chrome extension uploads."
     required: false
 
   api-url:
