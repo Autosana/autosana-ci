@@ -13,7 +13,7 @@ inputs:
     description: "[Mobile/Extension] Your app's bundle ID, or a stable identifier for your extension (e.g. 'my-extension')"
     required: false
   build-path:
-    description: "[Mobile/Extension] Full path to the build artifact. Android: .apk (.aab is not supported). iOS: .ipa or a zipped .app bundle. Chrome extension: .zip of the unpacked Manifest V3 extension directory."
+    description: "[Mobile/Extension] Full path to the build artifact. Android: .apk (.aab is not supported). iOS: .ipa or a zipped .app bundle. Chrome extension: .zip of the unpacked Manifest V3 extension directory. [Mobile, optional] Leave it empty to skip the upload and run the selected tests on the build already uploaded for this commit; the action waits up to 10 minutes for that build."
     required: false
   enable-ios-keychain-access-group-remapping:
     description: "[iOS] Persist whether .ipa builds should remap Team-ID-prefixed keychain access groups after cloud re-signing. Omit to use the app's saved preference."

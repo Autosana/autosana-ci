@@ -86,12 +86,19 @@ elif echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
   echo "   APP_NAME: ${APP_NAME:-<not set>}"
   echo ""
 
-  if [ -z "$BUNDLE_ID" ] || [ -z "$BUILD_PATH" ]; then
+  if [ -z "$BUNDLE_ID" ]; then
     echo "❌ ERROR: Missing required inputs for mobile platform."
     echo "   Required variables:"
     echo "   - BUNDLE_ID: ${BUNDLE_ID:+SET}${BUNDLE_ID:-NOT SET}"
     echo "   - PLATFORM: ${PLATFORM:+SET}${PLATFORM:-NOT SET}"
-    echo "   - BUILD_PATH: ${BUILD_PATH:+SET}${BUILD_PATH:-NOT SET}"
+    exit 1
+  fi
+
+  # Without a build, the run uses the build Autosana already has for this commit.
+  if [ -z "$BUILD_PATH" ] && ! has_test_selector; then
+    echo "❌ ERROR: build-path is empty and no tests are selected, so there is nothing to do."
+    echo "   Set build-path to upload a build, or set labels, suite-ids, flow-ids, folder-ids,"
+    echo "   suite-keys, flow-keys or folder-paths to run tests on the build already uploaded for this commit."
     exit 1
   fi
 
@@ -403,7 +410,17 @@ fi
 # ============================================================
 # MOBILE PLATFORM FLOW (android/ios)
 # ============================================================
-if [ "$PLATFORM" != "web" ]; then
+if [ "$PLATFORM" != "web" ] && [ -z "$BUILD_PATH" ]; then
+  echo "⏭️  No build-path: skipping the upload. Tests run on the build uploaded for commit $COMMIT_SHA."
+  for upload_input in "name:$APP_NAME" "enable-ios-keychain-access-group-remapping:$ENABLE_IOS_KEYCHAIN_ACCESS_GROUP_REMAPPING"; do
+    if [ -n "${upload_input#*:}" ]; then
+      echo "⚠️  '${upload_input%%:*}' applies only to uploads; ignoring it because build-path is empty."
+    fi
+  done
+  echo ""
+fi
+
+if [ "$PLATFORM" != "web" ] && [ -n "$BUILD_PATH" ]; then
 
 # Extract filename from build path for API calls
 FILENAME=$(basename "$BUILD_PATH")
@@ -998,18 +1015,42 @@ echo "   Request Payload:"
 echo "$RUN_PAYLOAD" | _redact_payload | jq '.'
 echo ""
 
-# kcov-ignore-start
-RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/v1/flows/run" \
-  --connect-timeout 30 \
-  --max-time 300 \
-  -H "X-API-Key: $AUTOSANA_KEY" \
-  -H "Content-Type: application/json" \
-  -d "$RUN_PAYLOAD" \
-  -w "\nHTTP Status: %{http_code}\n")
-# kcov-ignore-end
+# Another job of the same workflow may still be uploading this commit's build.
+# Retry only the 404s the backend tags as build_not_found.
+BUILD_WAIT_INTERVAL=15
+BUILD_WAIT_ATTEMPTS=40
+RUN_HEADERS_FILE=$(mktemp)
+attempt=1
+while true; do
+  # kcov-ignore-start
+  RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/v1/flows/run" \
+    --connect-timeout 30 \
+    --max-time 300 \
+    -H "X-API-Key: $AUTOSANA_KEY" \
+    -H "Content-Type: application/json" \
+    -d "$RUN_PAYLOAD" \
+    -D "$RUN_HEADERS_FILE" \
+    -w "\nHTTP Status: %{http_code}\n")
+  # kcov-ignore-end
 
-JSON_RESPONSE=$(echo "$RESPONSE" | head -n 1)
-HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP Status:" | cut -d' ' -f3)
+  JSON_RESPONSE=$(echo "$RESPONSE" | head -n 1)
+  HTTP_STATUS=$(echo "$RESPONSE" | grep "HTTP Status:" | cut -d' ' -f3)
+
+  if [ "$PLATFORM" = "web" ] || [ -n "$BUILD_PATH" ] || [ "$HTTP_STATUS" != "404" ] \
+    || ! tr -d '\r' < "$RUN_HEADERS_FILE" | grep -qix 'x-autosana-error: build_not_found'; then
+    break
+  fi
+  if [ "$attempt" -ge "$BUILD_WAIT_ATTEMPTS" ]; then
+    echo "❌ ERROR: No build for commit $COMMIT_SHA after $((BUILD_WAIT_ATTEMPTS * BUILD_WAIT_INTERVAL / 60)) minutes."
+    echo "   Upload one with build-path in this job or another job of this workflow."
+    echo "   Response: $JSON_RESPONSE"
+    exit 1
+  fi
+  echo "⏳ Waiting for the $PLATFORM build of $BUNDLE_ID at commit $COMMIT_SHA (attempt $attempt/$BUILD_WAIT_ATTEMPTS)..."
+  attempt=$((attempt + 1))
+  sleep "$BUILD_WAIT_INTERVAL"
+done
+rm -f "$RUN_HEADERS_FILE"
 
 if [ "$HTTP_STATUS" != "200" ]; then
   echo "❌ ERROR: Failed to trigger flows (HTTP $HTTP_STATUS)"

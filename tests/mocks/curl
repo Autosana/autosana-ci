@@ -7,11 +7,19 @@
 #
 # Endpoints: START_UPLOAD, CONFIRM_UPLOAD, UPLOAD_WEB, UPLOAD_FILE,
 #            RUN_FLOWS, POLL_STATUS
+#
+#   MOCK_CURL_CALL_LOG                - file that gets one endpoint name per call
+#   MOCK_RUN_FLOWS_STATUS_SEQUENCE    - comma-separated RUN_FLOWS statuses, one per
+#                                       call; the last one repeats. A 404 carries
+#                                       X-Autosana-Error: build_not_found unless
+#                                       MOCK_RUN_FLOWS_404_ERROR_CODE is set to ""
 
 METHOD="GET"
 URL=""
 DATA=""
 HAS_WRITE_OUT=false
+HEADER_FILE=""
+RESPONSE_HEADERS=""
 prev_arg=""
 
 for arg in "$@"; do
@@ -19,6 +27,7 @@ for arg in "$@"; do
         -X) METHOD="$arg" ;;
         -d) DATA="$arg" ;;
         -w) HAS_WRITE_OUT=true ;;
+        -D) HEADER_FILE="$arg" ;;
     esac
     prev_arg="$arg"
     if [[ "$arg" == http* ]]; then
@@ -42,6 +51,10 @@ case "$URL" in
         ;;
 esac
 
+if [ -n "${MOCK_CURL_CALL_LOG:-}" ]; then
+    echo "$ENDPOINT" >> "$MOCK_CURL_CALL_LOG"
+fi
+
 if [ -n "${MOCK_CURL_CAPTURE_DIR:-}" ] && [ -n "$DATA" ]; then
     mkdir -p "$MOCK_CURL_CAPTURE_DIR"
     printf '%s' "$DATA" > "$MOCK_CURL_CAPTURE_DIR/$ENDPOINT.json"
@@ -52,6 +65,20 @@ status_var="MOCK_CURL_STATUS_${ENDPOINT}"
 body_var="MOCK_CURL_BODY_${ENDPOINT}"
 STATUS="${!status_var:-200}"
 BODY="${!body_var:-}"
+
+if [ "$ENDPOINT" = "RUN_FLOWS" ] && [ -n "${MOCK_RUN_FLOWS_STATUS_SEQUENCE:-}" ]; then
+    IFS=',' read -ra statuses <<< "$MOCK_RUN_FLOWS_STATUS_SEQUENCE"
+    run_count=$(grep -cx RUN_FLOWS "$MOCK_CURL_CALL_LOG")
+    index=$((run_count - 1))
+    [ "$index" -ge "${#statuses[@]}" ] && index=$((${#statuses[@]} - 1))
+    STATUS="${statuses[$index]}"
+    if [ "$STATUS" = "404" ]; then
+        default_404='{"detail":"No app build found for commit '"'"'abcdef012345'"'"'; upload a build for this ref first"}'
+        BODY="${MOCK_RUN_FLOWS_404_BODY:-$default_404}"
+        error_code="${MOCK_RUN_FLOWS_404_ERROR_CODE-build_not_found}"
+        [ -n "$error_code" ] && RESPONSE_HEADERS="X-Autosana-Error: $error_code"
+    fi
+fi
 
 # Default responses per endpoint
 if [ -z "$BODY" ]; then
@@ -94,6 +121,10 @@ if [ -z "$BODY" ]; then
             STATUS="404"
             ;;
     esac
+fi
+
+if [ -n "$HEADER_FILE" ]; then
+    printf 'HTTP/1.1 %s\r\n%s\r\n\r\n' "$STATUS" "$RESPONSE_HEADERS" > "$HEADER_FILE"
 fi
 
 # Output response
