@@ -155,3 +155,6 @@ runs:
         WEB_BROWSER: ${{ inputs.web-browser }}
         DEPENDENCIES: ${{ inputs.dependencies }}
         WAIT: ${{ inputs.wait }}
+branding:
+  icon: "check-circle"
+  color: "blue"
