@@ -81,7 +81,8 @@ Shared optional inputs:
 - `physical-device`: Mobile runs only. Set to `true` to run on real hardware. Defaults to `false`.
 - `device-model`: Mobile runs only. Model from the Autosana device catalog, such as `Pixel 10 Pro`, or `latest`. Two-device flows use it for both devices.
 - `os-version`: Mobile runs only. OS version supported by the selected model, such as `17`, or `latest`. Two-device flows use it for both devices.
-- `device-match`: Real-device runs only. What happens when the pinned `device-model`/`os-version` is busy: `similar` (default) runs on the closest free device, and `exact` waits up to 5 minutes for the pinned device, then fails.
+- `model-match`: Real-device runs only. `similar` (default) lets a busy pinned `device-model` fall back to a similar free model; `exact` keeps that model.
+- `os-version-match`: Real-device runs only. `similar` (default) lets a busy pinned `os-version` fall back to a nearby version; `exact` keeps that version. With nothing acceptable free, runs wait up to 5 minutes, then fail.
 - `devices`: Mobile runs only. JSON array of exactly two ordered device selections, used instead of the device inputs above to choose each device of a two-device flow. One-device flows in the same run use the first entry.
 
 Direct test runs resolve code-managed flows, suites, and labels from the exact
@@ -142,13 +143,14 @@ behavior for backward compatibility.
 
 Real devices are shared, so a pinned model can be busy. By default the run then
 uses the closest free device (same model on another OS, then the nearest model).
-Set `device-match: exact` to wait for the pinned device instead:
+Set `model-match` or `os-version-match` to `exact` to keep that field fixed.
+For example, any free phone on iOS 26.0, preferring iPhone 16 Pro:
 
 ```yaml
     physical-device: true
     device-model: iPhone 16 Pro
     os-version: "26.0"
-    device-match: exact
+    os-version-match: exact
 ```
 
 One run can mix one-device and two-device flows, for example under a shared
@@ -156,9 +158,9 @@ label. No extra input is needed: a flow configured to use two devices runs on
 two devices matching the selection above.
 
 To choose each device of a two-device flow, pass an ordered JSON array through
-`devices` instead. Each entry supports `physical`, `model`, `os_version`, and `match`.
+`devices` instead. Each entry supports `physical`, `model`, `os_version`, and `match` (for example `{"os_version": "exact"}`).
 One-device flows in the same run use the first entry. Do not combine `devices`
-with `physical-device`, `device-model`, `os-version`, or `device-match`.
+with `physical-device`, `device-model`, `os-version`, `model-match`, or `os-version-match`.
 
 ```yaml
 - uses: autosana/autosana-ci@main

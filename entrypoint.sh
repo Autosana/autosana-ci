@@ -808,12 +808,16 @@ if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
       all(.[];
         ((keys_unsorted - ["physical", "model", "os_version", "match"]) | length == 0)
         and ((has("physical") | not) or ((.physical | type) == "boolean"))
-        and ((has("match") | not) or .match == null or .match == "exact" or .match == "similar")
+        and ((has("match") | not) or .match == null or (
+          (.match | type) == "object"
+          and ((.match | keys_unsorted) - ["model", "os_version"] | length == 0)
+          and all(.match[]; . == null or . == "exact" or . == "similar")
+        ))
         and ((has("model") | not) or .model == null or ((.model | type) == "string"))
         and ((has("os_version") | not) or .os_version == null or ((.os_version | type) == "string"))
       )
     ' >/dev/null; then
-      echo "❌ ERROR: each device may only contain physical, model, os_version, and match (\"similar\" or \"exact\", lowercase) with valid values."
+      echo "❌ ERROR: each device may only contain physical, model, os_version, and match ({\"model\": ..., \"os_version\": ...}, each \"similar\" or \"exact\", lowercase) with valid values."
       exit 1
     fi
     if ! echo "$DEVICES_JSON" | jq -e '
@@ -839,23 +843,26 @@ if [ "$(echo "$OS_VERSION" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = 
   OS_VERSION_PAYLOAD=""
   OS_VERSION_IS_LATEST="true"
 fi
-DEVICE_MATCH_LOWER=$(echo "${DEVICE_MATCH:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+MODEL_MATCH_LOWER=$(echo "${MODEL_MATCH:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
+OS_VERSION_MATCH_LOWER=$(echo "${OS_VERSION_MATCH:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
 if echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
-  case "$DEVICE_MATCH_LOWER" in
-    ""|similar|exact)
-      ;;
-    *)
-      echo "❌ ERROR: Unsupported 'device-match' value: '$DEVICE_MATCH'"
-      echo "   Allowed: similar (default), exact"
-      exit 1
-      ;;
-  esac
-  if [ -n "$DEVICE_MATCH_LOWER" ] && [ "$DEVICES_PROVIDED" = "true" ]; then
-    echo "❌ ERROR: device-match cannot be combined with devices; set match on each device instead."
+  for match_input in "model-match:$MODEL_MATCH_LOWER" "os-version-match:$OS_VERSION_MATCH_LOWER"; do
+    case "${match_input#*:}" in
+      ""|similar|exact)
+        ;;
+      *)
+        echo "❌ ERROR: Unsupported '${match_input%%:*}' value: '${match_input#*:}'"
+        echo "   Allowed: similar (default), exact"
+        exit 1
+        ;;
+    esac
+  done
+  if [ -n "$MODEL_MATCH_LOWER$OS_VERSION_MATCH_LOWER" ] && [ "$DEVICES_PROVIDED" = "true" ]; then
+    echo "❌ ERROR: model-match and os-version-match cannot be combined with devices; set match on each device instead."
     exit 1
   fi
-  if [ -n "$DEVICE_MATCH_LOWER" ] && [ "$DEVICES_PROVIDED" != "true" ] && [ "$PHYSICAL_DEVICE_LOWER" != "true" ]; then
-    echo "❌ ERROR: device-match only applies to real devices; set physical-device: true or remove device-match."
+  if [ -n "$MODEL_MATCH_LOWER$OS_VERSION_MATCH_LOWER" ] && [ "$DEVICES_PROVIDED" != "true" ] && [ "$PHYSICAL_DEVICE_LOWER" != "true" ]; then
+    echo "❌ ERROR: model-match and os-version-match only apply to real devices; set physical-device: true or remove them."
     exit 1
   fi
   case "$PHYSICAL_DEVICE_LOWER" in
@@ -1005,7 +1012,8 @@ else
     --arg physical_device "$PHYSICAL_DEVICE_LOWER" \
     --arg device_model "$DEVICE_MODEL_PAYLOAD" \
     --arg os_version "$OS_VERSION_PAYLOAD" \
-    --arg device_match "$DEVICE_MATCH_LOWER" \
+    --arg model_match "$MODEL_MATCH_LOWER" \
+    --arg os_version_match "$OS_VERSION_MATCH_LOWER" \
     --arg devices_provided "$DEVICES_PROVIDED" \
     --arg location "$LOCATION_CODE" \
     --arg locale "$LOCALE_CODE" \
@@ -1035,7 +1043,10 @@ else
         then {device: ({physical: ($physical_device == "true")}
           + (if $device_model != "" then {model: $device_model} else {} end)
           + (if $os_version != "" then {os_version: $os_version} else {} end)
-          + (if $device_match != "" then {match: $device_match} else {} end))}
+          + (({}
+              + (if $model_match != "" then {model: $model_match} else {} end)
+              + (if $os_version_match != "" then {os_version: $os_version_match} else {} end))
+            | if . == {} then {} else {match: .} end))}
         else {} end)
      + (if $location != "" then {location: $location} else {} end)
      + (if $locale != "" then {locale: $locale} else {} end)')

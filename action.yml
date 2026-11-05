@@ -28,8 +28,11 @@ inputs:
   os-version:
     description: "[Mobile runs] OS version supported by the selected device model (for example, '17'). 'latest' is normalized to rolling OS selection. Two-device flows use it for both devices."
     required: false
-  device-match:
-    description: "[Real-device runs] What to do when the pinned device-model/os-version is busy. 'similar' (default) runs on the closest free device; 'exact' waits up to 5 minutes for the pinned device, then fails."
+  model-match:
+    description: "[Real-device runs] 'similar' (default): if the pinned device-model is busy, a similar free model may be used. 'exact': only that model, waiting up to 5 minutes before failing."
+    required: false
+  os-version-match:
+    description: "[Real-device runs] 'similar' (default): if no free device has the pinned os-version, a nearby version may be used. 'exact': only that OS version, waiting up to 5 minutes before failing."
     required: false
   devices:
     description: "[Mobile runs] JSON array of exactly two ordered device selections with physical, model, os_version, and match fields as needed. Use it instead of physical-device, device-model, and os-version to choose each device of a two-device flow; one-device flows in the same run use the first entry."
@@ -131,7 +134,8 @@ runs:
         PHYSICAL_DEVICE: ${{ inputs.physical-device }}
         DEVICE_MODEL: ${{ inputs.device-model }}
         OS_VERSION: ${{ inputs.os-version }}
-        DEVICE_MATCH: ${{ inputs.device-match }}
+        MODEL_MATCH: ${{ inputs.model-match }}
+        OS_VERSION_MATCH: ${{ inputs.os-version-match }}
         DEVICES: ${{ inputs.devices }}
         # Web inputs
         APP_ID: ${{ inputs.app-id }}
