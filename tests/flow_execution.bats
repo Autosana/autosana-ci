@@ -252,6 +252,20 @@ setup() {
     refute_output --partial "Triggering flows"
 }
 
+@test "os-version-match needs a pinned os-version" {
+    export FLOW_IDS="uuid-1"
+    export PHYSICAL_DEVICE="true"
+    export DEVICE_MODEL="iPhone 16 Pro"
+    export OS_VERSION="latest"
+    export OS_VERSION_MATCH="exact"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "os-version-match needs a pinned os-version"
+    refute_output --partial "Triggering flows"
+}
+
 @test "os-version-match cannot be combined with devices" {
     export FLOW_IDS="uuid-1"
     export DEVICES='[{"physical": true}, {"physical": true}]'

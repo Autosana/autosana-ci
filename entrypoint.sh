@@ -865,6 +865,14 @@ if echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
     echo "❌ ERROR: model-match and os-version-match only apply to real devices; set physical-device: true or remove them."
     exit 1
   fi
+  if [ -n "$MODEL_MATCH_LOWER" ] && [ "$DEVICES_PROVIDED" != "true" ] && [ -z "$(echo "$DEVICE_MODEL_PAYLOAD" | tr -d '[:space:]')" ]; then
+    echo "❌ ERROR: model-match needs a pinned device-model; set device-model or remove model-match."
+    exit 1
+  fi
+  if [ -n "$OS_VERSION_MATCH_LOWER" ] && [ "$DEVICES_PROVIDED" != "true" ] && [ -z "$(echo "$OS_VERSION_PAYLOAD" | tr -d '[:space:]')" ]; then
+    echo "❌ ERROR: os-version-match needs a pinned os-version; set os-version or remove os-version-match."
+    exit 1
+  fi
   case "$PHYSICAL_DEVICE_LOWER" in
     true|false)
       ;;
