@@ -240,6 +240,44 @@ setup() {
     refute_output --partial "Triggering flows"
 }
 
+@test "device-match requires a real device" {
+    export FLOW_IDS="uuid-1"
+    export DEVICE_MODEL="Pixel 10 Pro"
+    export DEVICE_MATCH="exact"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "device-match only applies to real devices"
+    refute_output --partial "Triggering flows"
+}
+
+@test "device-match cannot be combined with devices" {
+    export FLOW_IDS="uuid-1"
+    export DEVICES='[{"physical": true}, {"physical": true}]'
+    export DEVICE_MATCH="exact"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "device-match cannot be combined with devices"
+    refute_output --partial "Triggering flows"
+}
+
+@test "devices JSON keeps match on each real device" {
+    export FLOW_IDS="uuid-1"
+    export DEVICES='[{"physical": true, "model": "iPhone 16 Pro", "match": "exact"}, {"physical": true}]'
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/devices-match-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.devices[0].match == "exact" and (.devices[1] | has("match") | not)' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
 @test "devices JSON produces the ordered two-device payload" {
     export FLOW_IDS="uuid-1"
     export DEVICES='[

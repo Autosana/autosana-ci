@@ -813,7 +813,7 @@ if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
         and ((has("os_version") | not) or .os_version == null or ((.os_version | type) == "string"))
       )
     ' >/dev/null; then
-      echo "❌ ERROR: each device may only contain physical, model, os_version, and match with valid values."
+      echo "❌ ERROR: each device may only contain physical, model, os_version, and match (\"similar\" or \"exact\", lowercase) with valid values."
       exit 1
     fi
     if ! echo "$DEVICES_JSON" | jq -e '
@@ -852,6 +852,10 @@ if echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
   esac
   if [ -n "$DEVICE_MATCH_LOWER" ] && [ "$DEVICES_PROVIDED" = "true" ]; then
     echo "❌ ERROR: device-match cannot be combined with devices; set match on each device instead."
+    exit 1
+  fi
+  if [ -n "$DEVICE_MATCH_LOWER" ] && [ "$DEVICES_PROVIDED" != "true" ] && [ "$PHYSICAL_DEVICE_LOWER" != "true" ]; then
+    echo "❌ ERROR: device-match only applies to real devices; set physical-device: true or remove device-match."
     exit 1
   fi
   case "$PHYSICAL_DEVICE_LOWER" in
