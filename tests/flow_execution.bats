@@ -210,6 +210,36 @@ setup() {
     assert_success
 }
 
+@test "device-match exact is sent with the pinned real device" {
+    export FLOW_IDS="uuid-1"
+    export PHYSICAL_DEVICE="true"
+    export DEVICE_MODEL="iPhone 16 Pro"
+    export OS_VERSION="26.0"
+    export DEVICE_MATCH="Exact"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/exact-device-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.device == {physical: true, model: "iPhone 16 Pro", os_version: "26.0", match: "exact"}' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "device-match rejects unknown values" {
+    export FLOW_IDS="uuid-1"
+    export PHYSICAL_DEVICE="true"
+    export DEVICE_MODEL="iPhone 16 Pro"
+    export DEVICE_MATCH="closest"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "Unsupported 'device-match' value"
+    refute_output --partial "Triggering flows"
+}
+
 @test "devices JSON produces the ordered two-device payload" {
     export FLOW_IDS="uuid-1"
     export DEVICES='[
@@ -275,7 +305,7 @@ setup() {
     run bash "$ENTRYPOINT"
 
     assert_failure
-    assert_output --partial "each device may only contain physical, model, and os_version"
+    assert_output --partial "each device may only contain physical, model, os_version, and match"
     refute_output --partial "Triggering flows"
 }
 

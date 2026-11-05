@@ -806,13 +806,14 @@ if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
     fi
     if ! echo "$DEVICES_JSON" | jq -e '
       all(.[];
-        ((keys_unsorted - ["physical", "model", "os_version"]) | length == 0)
+        ((keys_unsorted - ["physical", "model", "os_version", "match"]) | length == 0)
         and ((has("physical") | not) or ((.physical | type) == "boolean"))
+        and ((has("match") | not) or .match == null or .match == "exact" or .match == "similar")
         and ((has("model") | not) or .model == null or ((.model | type) == "string"))
         and ((has("os_version") | not) or .os_version == null or ((.os_version | type) == "string"))
       )
     ' >/dev/null; then
-      echo "❌ ERROR: each device may only contain physical, model, and os_version with valid value types."
+      echo "❌ ERROR: each device may only contain physical, model, os_version, and match with valid values."
       exit 1
     fi
     if ! echo "$DEVICES_JSON" | jq -e '
@@ -838,7 +839,21 @@ if [ "$(echo "$OS_VERSION" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" = 
   OS_VERSION_PAYLOAD=""
   OS_VERSION_IS_LATEST="true"
 fi
+DEVICE_MATCH_LOWER=$(echo "${DEVICE_MATCH:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')
 if echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
+  case "$DEVICE_MATCH_LOWER" in
+    ""|similar|exact)
+      ;;
+    *)
+      echo "❌ ERROR: Unsupported 'device-match' value: '$DEVICE_MATCH'"
+      echo "   Allowed: similar (default), exact"
+      exit 1
+      ;;
+  esac
+  if [ -n "$DEVICE_MATCH_LOWER" ] && [ "$DEVICES_PROVIDED" = "true" ]; then
+    echo "❌ ERROR: device-match cannot be combined with devices; set match on each device instead."
+    exit 1
+  fi
   case "$PHYSICAL_DEVICE_LOWER" in
     true|false)
       ;;
@@ -986,6 +1001,7 @@ else
     --arg physical_device "$PHYSICAL_DEVICE_LOWER" \
     --arg device_model "$DEVICE_MODEL_PAYLOAD" \
     --arg os_version "$OS_VERSION_PAYLOAD" \
+    --arg device_match "$DEVICE_MATCH_LOWER" \
     --arg devices_provided "$DEVICES_PROVIDED" \
     --arg location "$LOCATION_CODE" \
     --arg locale "$LOCALE_CODE" \
@@ -1014,7 +1030,8 @@ else
         elif $physical_device == "true" or $device_model != "" or $os_version != ""
         then {device: ({physical: ($physical_device == "true")}
           + (if $device_model != "" then {model: $device_model} else {} end)
-          + (if $os_version != "" then {os_version: $os_version} else {} end))}
+          + (if $os_version != "" then {os_version: $os_version} else {} end)
+          + (if $device_match != "" then {match: $device_match} else {} end))}
         else {} end)
      + (if $location != "" then {location: $location} else {} end)
      + (if $locale != "" then {locale: $locale} else {} end)')
