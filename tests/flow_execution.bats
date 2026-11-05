@@ -210,6 +210,88 @@ setup() {
     assert_success
 }
 
+@test "model-match and os-version-match are sent with the pinned real device" {
+    export FLOW_IDS="uuid-1"
+    export PHYSICAL_DEVICE="true"
+    export DEVICE_MODEL="iPhone 16 Pro"
+    export OS_VERSION="26.0"
+    export OS_VERSION_MATCH="Exact"
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/exact-device-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.device == {physical: true, model: "iPhone 16 Pro", os_version: "26.0", match: {os_version: "exact"}}' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "model-match rejects unknown values" {
+    export FLOW_IDS="uuid-1"
+    export PHYSICAL_DEVICE="true"
+    export DEVICE_MODEL="iPhone 16 Pro"
+    export MODEL_MATCH="closest"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "Unsupported 'model-match' value"
+    refute_output --partial "Triggering flows"
+}
+
+@test "model-match requires a real device" {
+    export FLOW_IDS="uuid-1"
+    export DEVICE_MODEL="Pixel 10 Pro"
+    export MODEL_MATCH="exact"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "only apply to real devices"
+    refute_output --partial "Triggering flows"
+}
+
+@test "os-version-match needs a pinned os-version" {
+    export FLOW_IDS="uuid-1"
+    export PHYSICAL_DEVICE="true"
+    export DEVICE_MODEL="iPhone 16 Pro"
+    export OS_VERSION="latest"
+    export OS_VERSION_MATCH="exact"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "os-version-match needs a pinned os-version"
+    refute_output --partial "Triggering flows"
+}
+
+@test "os-version-match cannot be combined with devices" {
+    export FLOW_IDS="uuid-1"
+    export DEVICES='[{"physical": true}, {"physical": true}]'
+    export OS_VERSION_MATCH="exact"
+
+    run bash "$ENTRYPOINT"
+
+    assert_failure
+    assert_output --partial "cannot be combined with devices"
+    refute_output --partial "Triggering flows"
+}
+
+@test "devices JSON keeps match on each real device" {
+    export FLOW_IDS="uuid-1"
+    export DEVICES='[{"physical": true, "model": "iPhone 16 Pro", "match": {"model": "exact"}}, {"physical": true}]'
+    export MOCK_CURL_CAPTURE_DIR="$BATS_TEST_TMPDIR/devices-match-request"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_passed.json"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e '.devices[0].match == {model: "exact"} and (.devices[1] | has("match") | not)' \
+        "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
 @test "devices JSON produces the ordered two-device payload" {
     export FLOW_IDS="uuid-1"
     export DEVICES='[
@@ -275,7 +357,7 @@ setup() {
     run bash "$ENTRYPOINT"
 
     assert_failure
-    assert_output --partial "each device may only contain physical, model, and os_version"
+    assert_output --partial "each device may only contain physical, model, os_version, and match"
     refute_output --partial "Triggering flows"
 }
 
