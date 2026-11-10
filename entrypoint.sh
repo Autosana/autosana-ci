@@ -1122,6 +1122,7 @@ fi
 
 BATCH_ID=$(echo "$JSON_RESPONSE" | jq -r '.batch_id')
 FLOW_RUN_COUNT=$(echo "$JSON_RESPONSE" | jq -r '.flow_run_count')
+SNOOZED_FLOW_COUNT=$(echo "$JSON_RESPONSE" | jq -r '.snoozed_flow_count // 0')
 
 if [ -z "$BATCH_ID" ] || [ "$BATCH_ID" = "null" ]; then
   echo "❌ ERROR: Failed to retrieve batch ID from response"
@@ -1129,7 +1130,11 @@ if [ -z "$BATCH_ID" ] || [ "$BATCH_ID" = "null" ]; then
   exit 1
 fi
 
-echo "✅ Triggered $FLOW_RUN_COUNT flow(s)"
+if [ "$SNOOZED_FLOW_COUNT" != "0" ]; then
+  echo "✅ Triggered $FLOW_RUN_COUNT flow(s) ($SNOOZED_FLOW_COUNT snoozed)"
+else
+  echo "✅ Triggered $FLOW_RUN_COUNT flow(s)"
+fi
 echo "   Batch ID: $BATCH_ID"
 echo ""
 
@@ -1174,6 +1179,10 @@ fi
 # the CI job on results — exit 0 now.
 if [ "$WAIT_LOWER" = "false" ]; then
   echo "🏃 Not waiting for results (wait: false)."
+  if [ "$FLOW_RUN_COUNT" = "0" ] && [ "$SNOOZED_FLOW_COUNT" != "0" ]; then
+    echo "✅ 0 ran, all $SNOOZED_FLOW_COUNT snoozed."
+    exit 0
+  fi
   # Only point at "the links above" when we actually printed them. The
   # initial status GET is best-effort (it can fail on a transient blip),
   # and the blocking path tolerates that by retrying in the poll loop — but
@@ -1207,12 +1216,12 @@ while true; do
   echo "$STATUS_RESPONSE" | jq -c '.run_groups[]' 2>/dev/null | while IFS= read -r group; do
     GROUP_NAME=$(echo "$group" | jq -r '.name')
 
-    echo "$group" | jq -c '.runs[]' 2>/dev/null | while IFS= read -r flow; do
+    echo "$group" | jq -c '(.runs // [])[], ((.snoozed_runs // [])[] | .status = "snoozed")' 2>/dev/null | while IFS= read -r flow; do
       FLOW_STATUS=$(echo "$flow" | jq -r '.status')
       FLOW_ID=$(echo "$flow" | jq -r '.id')
 
       case "$FLOW_STATUS" in
-        passed|failed|error|terminated|skipped) : ;;
+        passed|failed|error|terminated|skipped|snoozed) : ;;
         *) continue ;;
       esac
 
@@ -1238,6 +1247,7 @@ while true; do
         error)      printf "    ⚠ %-40s ERROR    %s\n" "$FLOW_NAME" "$FLOW_URL" ;;
         terminated) printf "    ■ %-40s TERMINATED\n" "$FLOW_NAME" ;;
         skipped)    printf "    → %-40s SKIPPED\n" "$FLOW_NAME" ;;
+        snoozed)    printf "    ☾ %-40s SNOOZED\n" "$FLOW_NAME" ;;
       esac
 
       REVIEW_SUMMARY=$(echo "$flow" | jq -r '.summary // empty')
@@ -1270,6 +1280,7 @@ FAILED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.failed_flows // 0')
 ERROR_COUNT=$(echo "$STATUS_RESPONSE" | jq -r '.summary.error_flows // 0')
 TERMINATED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.terminated_flows // 0')
 SKIPPED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.skipped_flows // 0')
+SNOOZED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.snoozed_flows // 0')
 
 echo "   Suites:  $PASSED_GROUPS/$TOTAL_GROUPS passed"
 echo "   Flows:   $PASSED/$TOTAL passed"
@@ -1277,6 +1288,7 @@ echo "   Flows:   $PASSED/$TOTAL passed"
 [ "$ERROR_COUNT" != "0" ] && echo "   Error:   $ERROR_COUNT"
 [ "$TERMINATED" != "0" ] && echo "   Terminated: $TERMINATED"
 [ "$SKIPPED" != "0" ] && echo "   Skipped: $SKIPPED"
+[ "$SNOOZED" != "0" ] && echo "   Snoozed: $SNOOZED"
 echo ""
 
 # API totals exclude skips and already fold passing retries into passed_flows.
@@ -1304,8 +1316,13 @@ if [ "$BAD_GROUPS" -gt 0 ]; then
   exit 1
 fi
 
+SNOOZED_NOTE=""
+[ "$SNOOZED" -gt 0 ] && SNOOZED_NOTE=" ($SNOOZED snoozed)"
 if [ "$TOTAL" -gt 0 ] && [ "$PASSED" -eq "$TOTAL" ]; then
-  echo "✅ All flows passed ($PASSED/$TOTAL)."
+  echo "✅ All flows passed ($PASSED/$TOTAL)$SNOOZED_NOTE."
+  exit 0
+elif [ "$TOTAL" -eq 0 ] && [ "$PASSED" -eq 0 ] && [ "$SNOOZED" -gt 0 ]; then
+  echo "✅ 0 ran, all $SNOOZED snoozed."
   exit 0
 elif [ "$TOTAL" -eq 0 ] && [ "$PASSED" -eq 0 ]; then
   echo "❌ No flows ran (TOTAL=$TOTAL). Refusing to report success."

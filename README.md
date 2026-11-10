@@ -195,6 +195,10 @@ By default, when you pass a flow, suite, or label selector, the action waits for
     wait: false
 ```
 
+### Snoozed tests
+
+Tests with the `snoozed` label are skipped, unless the run names only that one test (a single `flow-ids` or `flow-keys` entry and no other selector). The action lists each skipped one as `SNOOZED` and does not count it as a failure. A run whose tests are all snoozed passes with `0 ran, all N snoozed`.
+
 ### Run tests without uploading
 
 For mobile, leave `build-path` empty to run the selected tests on the build
