@@ -1179,6 +1179,10 @@ fi
 # the CI job on results — exit 0 now.
 if [ "$WAIT_LOWER" = "false" ]; then
   echo "🏃 Not waiting for results (wait: false)."
+  if [ "$FLOW_RUN_COUNT" = "0" ] && [ "$SNOOZED_FLOW_COUNT" != "0" ]; then
+    echo "✅ 0 ran, all $SNOOZED_FLOW_COUNT snoozed."
+    exit 0
+  fi
   # Only point at "the links above" when we actually printed them. The
   # initial status GET is best-effort (it can fail on a transient blip),
   # and the blocking path tolerates that by retrying in the poll loop — but

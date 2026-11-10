@@ -891,6 +891,17 @@ setup() {
     refute_output --partial "No flows ran"
 }
 
+@test "wait=false with all snoozed says nothing is running" {
+    export FLOW_IDS="uuid-1"
+    export WAIT="false"
+    export MOCK_CURL_BODY_RUN_FLOWS='{"batch_id":"batch-001","flow_run_count":0,"snoozed_flow_count":2}'
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_snoozed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "✅ 0 ran, all 2 snoozed."
+    refute_output --partial "0 flow(s) are running"
+}
+
 @test "snoozed plus failed still exits 1" {
     export FLOW_IDS="uuid-1"
     export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_snoozed_and_failed.json"
