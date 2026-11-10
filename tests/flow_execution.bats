@@ -861,6 +861,65 @@ setup() {
     assert_output --partial "No flows ran"
 }
 
+# Snoozed tests sit outside runs[] and every other count.
+@test "passed plus snoozed exits 0 and prints the snoozed count" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_passed_with_snoozed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Snoozed: 1"
+    assert_output --partial "All flows passed (1/1) (1 snoozed)."
+}
+
+@test "snoozed tests print with a moon line" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_passed_with_snoozed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --regexp '☾ Checkout Flow +SNOOZED'
+    [ "$(grep -c 'SNOOZED' <<< "$output")" -eq 1 ]
+}
+
+@test "all snoozed exits 0 with 0 ran message" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_CURL_BODY_RUN_FLOWS='{"batch_id":"batch-001","flow_run_count":0,"snoozed_flow_count":2}'
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_all_snoozed.json"
+    run bash "$ENTRYPOINT"
+    assert_success
+    assert_output --partial "Triggered 0 flow(s) (2 snoozed)"
+    assert_output --partial "✅ 0 ran, all 2 snoozed."
+    refute_output --partial "No flows ran"
+}
+
+@test "snoozed plus failed still exits 1" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_snoozed_and_failed.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Snoozed: 1"
+    refute_output --partial "all 1 snoozed"
+}
+
+@test "empty batch with no snoozed still refuses success" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_empty_batch.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "No flows ran"
+    refute_output --partial "snoozed"
+}
+
+@test "response without snoozed fields behaves as before" {
+    export FLOW_IDS="uuid-1"
+    export MOCK_POLL_RESPONSE_FILE="$PROJECT_ROOT/tests/fixtures/poll_passed_with_skipped.json"
+    run bash "$ENTRYPOINT"
+    assert_failure
+    assert_output --partial "Triggered 2 flow(s)"
+    assert_output --partial "skipped without a passing retry"
+    refute_output --partial "snoozed"
+    refute_output --partial "SNOOZED"
+}
+
 # The API excludes skips from total; passed must never exceed that total.
 @test "inconsistent counters (PASSED > TOTAL) fails closed with a sensible message" {
     export FLOW_IDS="uuid-1"
