@@ -45,9 +45,45 @@ _assert_refused_before_upload() {
     assert_success
 }
 
+@test "flow-keys runs send flow_keys with the private device" {
+    export FLOW_IDS=""
+    export FLOW_KEYS="auth/login"
+    export PRIVATE_DEVICE_ID="$DEVICE_UUID"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    run jq -e --arg id "$DEVICE_UUID" '
+      .flow_keys == ["auth/login"]
+      and (has("flow_ids") | not)
+      and .device == {physical: true, private_device_id: $id}
+    ' "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json"
+    assert_success
+}
+
+@test "upload-only step warns that private-device-id is ignored" {
+    export FLOW_IDS=""
+    export PRIVATE_DEVICE_ID="$DEVICE_UUID"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    assert_output --partial "⚠️  'private-device-id' applies only when tests are selected; ignoring it"
+    [ ! -e "$MOCK_CURL_CAPTURE_DIR/RUN_FLOWS.json" ]
+}
+
 @test "private-device-id rejects a value that is not a UUID" {
     export PRIVATE_DEVICE_ID="my-pixel"
     _assert_refused_before_upload "'private-device-id' must be a device UUID"
+    assert_output --partial "right after /devices/"
+    assert_output --partial "not the UDID"
+    assert_output --partial "GET /api/v1/devices/private"
+}
+
+@test "private-device-id cannot be combined with location" {
+    export PRIVATE_DEVICE_ID="$DEVICE_UUID"
+    export LOCATION="mx"
+    _assert_refused_before_upload "'private-device-id' cannot be combined with 'location'"
 }
 
 @test "private-device-id rejects a UUID with spaces inside it" {

@@ -277,6 +277,9 @@ if [ -n "$PRIVATE_DEVICE_ID_VALUE" ]; then
   fi
   if [[ ! "$PRIVATE_DEVICE_ID_VALUE" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
     echo "❌ ERROR: 'private-device-id' must be a device UUID, such as 3f1c2a4e-9b7d-4c1a-8e2f-0a1b2c3d4e5f."
+    echo "   Open the device in the Autosana dashboard. Copy the part of the page address right after /devices/."
+    echo "   Use that ID, not the UDID."
+    echo "   GET /api/v1/devices/private also lists your private devices with their id."
     echo "   Provided: '$PRIVATE_DEVICE_ID'"
     exit 1
   fi
@@ -287,6 +290,14 @@ if [ -n "$PRIVATE_DEVICE_ID_VALUE" ]; then
       exit 1
     fi
   done
+  if [ -n "$LOCATION_CODE" ]; then
+    echo "❌ ERROR: 'private-device-id' cannot be combined with 'location'."
+    echo "   Private devices do not support a run location yet. Remove 'location' from this step."
+    exit 1
+  fi
+  if ! has_test_selector; then
+    echo "⚠️  'private-device-id' applies only when tests are selected; ignoring it because no flow, suite, folder, or label is selected."
+  fi
 fi
 
 # A deployment can target a different commit from the trusted workflow checkout.

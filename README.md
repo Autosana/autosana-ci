@@ -84,7 +84,7 @@ Shared optional inputs:
 - `model-match`: Real-device runs only. `similar` (default) lets a busy pinned `device-model` fall back to a similar free model; `exact` keeps that model.
 - `os-version-match`: Real-device runs only. `similar` (default) lets a busy pinned `os-version` fall back to a nearby version; `exact` keeps that version. With nothing acceptable free, runs wait up to 5 minutes, then fail.
 - `devices`: Mobile runs only. JSON array of exactly two ordered device selections, used instead of the device inputs above to choose each device of a two-device flow. One-device flows in the same run use the first entry.
-- `private-device-id`: Mobile runs only. ID of one of your private devices (your own phones). Runs the triggered flows on that phone. See [Run on a private device](#run-on-a-private-device).
+- `private-device-id`: Mobile runs only. ID of one of your private devices (your own phones). Runs the triggered flows on that phone. Implies `physical-device: true`. See [Run on a private device](#run-on-a-private-device).
 
 Direct test runs resolve code-managed flows, suites, and labels from the exact
 checked-out commit. GitHub repository metadata and a full commit SHA are required
@@ -183,9 +183,14 @@ virtual devices.
 
 ### Run on a private device
 
-To run on one of your own phones, pass its ID through `private-device-id`. The
-ID is the last part of the device's page address in Autosana (`/devices/<id>`).
-The phone must run the same platform as the upload.
+To run on one of your own phones, pass its ID through `private-device-id`. It
+implies `physical-device: true`. The phone must run the same platform as the upload.
+
+To find the ID, open the device in the Autosana dashboard and copy the part of
+the page address right after `/devices/` (`/devices/<id>`). Do not use the UDID
+from the **Copy UDID** button. You can also list your private devices and their
+`id` with `GET /api/v1/devices/private`, using your API key in the `X-API-Key`
+header.
 
 ```yaml
 - uses: autosana/autosana-ci@main
@@ -198,8 +203,9 @@ The phone must run the same platform as the upload.
     private-device-id: 3f1c2a4e-9b7d-4c1a-8e2f-0a1b2c3d4e5f
 ```
 
-Do not combine it with `devices`, `device-model`, `os-version`, `model-match`, or
-`os-version-match`. Two-device flows cannot run on a private device.
+Do not combine it with `devices`, `device-model`, `os-version`, `model-match`,
+`os-version-match`, or `location`. Two-device flows cannot run on a private
+device. The input applies only when the step selects tests.
 
 ### Fire-and-forget runs
 
