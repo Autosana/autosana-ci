@@ -267,6 +267,59 @@ if [ -n "$LOCALE_CODE" ] && [ "$PLATFORM" = "chrome-extension" ]; then
   exit 1
 fi
 
+# Private device: one of the company's own phones, by ID or name. The backend checks ownership and platform.
+PRIVATE_DEVICE_JSON="null"
+if [ -n "${PRIVATE_DEVICE:-}" ]; then
+  if ! echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
+    echo "❌ ERROR: 'private-device' is supported only for Android and iOS runs."
+    echo "   Remove it from this '$PLATFORM' step."
+    exit 1
+  fi
+  PRIVATE_DEVICE_VALUE=$(printf '%s' "$PRIVATE_DEVICE" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  if [ -z "$PRIVATE_DEVICE_VALUE" ]; then
+    echo "❌ ERROR: 'private-device' is blank."
+    echo "   Set it to a private device ID or name, or remove it from this step."
+    exit 1
+  fi
+  case "$PRIVATE_DEVICE_VALUE" in
+    [Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])
+      echo "❌ ERROR: private-device takes a device ID or name, not true/false."
+      echo "   To run on any real device instead, use physical-device: true."
+      exit 1
+      ;;
+  esac
+  if [[ "$PRIVATE_DEVICE_VALUE" =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}$ || "$PRIVATE_DEVICE_VALUE" =~ ^[0-9A-Fa-f]{40}$ ]]; then
+    echo "❌ ERROR: 'private-device' looks like a UDID."
+    echo "   A UDID is neither the device's ID nor its name."
+    echo "   Use the ID from the device page address, right after /devices/, or the device name."
+    exit 1
+  fi
+  if [[ "$PRIVATE_DEVICE_VALUE" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+    PRIVATE_DEVICE_JSON=$(jq -cn --arg id "$(printf '%s' "$PRIVATE_DEVICE_VALUE" | tr '[:upper:]' '[:lower:]')" '{physical: true, private_device_id: $id}')
+  elif [ "$(jq -rn --arg name "$PRIVATE_DEVICE_VALUE" '$name | length')" -gt 100 ]; then
+    echo "❌ ERROR: 'private-device' name is longer than 100 characters."
+    echo "   Use the device ID, or the device name exactly as the dashboard shows it."
+    exit 1
+  else
+    PRIVATE_DEVICE_JSON=$(jq -cn --arg name "$PRIVATE_DEVICE_VALUE" '{physical: true, private_device_name: $name}')
+  fi
+  for device_input in "devices:$DEVICES" "device-model:$DEVICE_MODEL" "os-version:$OS_VERSION" "model-match:${MODEL_MATCH:-}" "os-version-match:${OS_VERSION_MATCH:-}"; do
+    if [ -n "$(printf '%s' "${device_input#*:}" | tr -d '[:space:]')" ]; then
+      echo "❌ ERROR: 'private-device' cannot be combined with '${device_input%%:*}'."
+      echo "   A private device is one specific phone. Remove '${device_input%%:*}' from this step."
+      exit 1
+    fi
+  done
+  if [ -n "$LOCATION_CODE" ]; then
+    echo "❌ ERROR: 'private-device' cannot be combined with 'location'."
+    echo "   Private devices do not support a run location yet. Remove 'location' from this step."
+    exit 1
+  fi
+  if ! has_test_selector; then
+    echo "⚠️  'private-device' applies only when tests are selected; ignoring it because no flow, suite, folder, or label is selected."
+  fi
+fi
+
 # A deployment can target a different commit from the trusted workflow checkout.
 # Keep checkout-based detection for other events (including intentional custom refs).
 PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "${GITHUB_EVENT_PATH:-}" 2>/dev/null || true)
@@ -1023,6 +1076,7 @@ else
     --arg model_match "$MODEL_MATCH_LOWER" \
     --arg os_version_match "$OS_VERSION_MATCH_LOWER" \
     --arg devices_provided "$DEVICES_PROVIDED" \
+    --argjson private_device "$PRIVATE_DEVICE_JSON" \
     --arg location "$LOCATION_CODE" \
     --arg locale "$LOCALE_CODE" \
     --arg key_selector_mode "$KEY_SELECTOR_MODE" \
@@ -1045,7 +1099,9 @@ else
           + (if $folder_ids != [] then {folder_ids: $folder_ids} else {} end) end)
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
-     + (if $devices_provided == "true"
+     + (if $private_device != null
+        then {device: $private_device}
+        elif $devices_provided == "true"
         then {devices: $devices}
         elif $physical_device == "true" or $device_model != "" or $os_version != ""
         then {device: ({physical: ($physical_device == "true")}
@@ -1122,6 +1178,7 @@ fi
 
 BATCH_ID=$(echo "$JSON_RESPONSE" | jq -r '.batch_id')
 FLOW_RUN_COUNT=$(echo "$JSON_RESPONSE" | jq -r '.flow_run_count')
+SNOOZED_FLOW_COUNT=$(echo "$JSON_RESPONSE" | jq -r '.snoozed_flow_count // 0')
 
 if [ -z "$BATCH_ID" ] || [ "$BATCH_ID" = "null" ]; then
   echo "❌ ERROR: Failed to retrieve batch ID from response"
@@ -1129,7 +1186,11 @@ if [ -z "$BATCH_ID" ] || [ "$BATCH_ID" = "null" ]; then
   exit 1
 fi
 
-echo "✅ Triggered $FLOW_RUN_COUNT flow(s)"
+if [ "$SNOOZED_FLOW_COUNT" != "0" ]; then
+  echo "✅ Triggered $FLOW_RUN_COUNT flow(s) ($SNOOZED_FLOW_COUNT snoozed)"
+else
+  echo "✅ Triggered $FLOW_RUN_COUNT flow(s)"
+fi
 echo "   Batch ID: $BATCH_ID"
 echo ""
 
@@ -1174,6 +1235,10 @@ fi
 # the CI job on results — exit 0 now.
 if [ "$WAIT_LOWER" = "false" ]; then
   echo "🏃 Not waiting for results (wait: false)."
+  if [ "$FLOW_RUN_COUNT" = "0" ] && [ "$SNOOZED_FLOW_COUNT" != "0" ]; then
+    echo "✅ 0 ran, all $SNOOZED_FLOW_COUNT snoozed."
+    exit 0
+  fi
   # Only point at "the links above" when we actually printed them. The
   # initial status GET is best-effort (it can fail on a transient blip),
   # and the blocking path tolerates that by retrying in the poll loop — but
@@ -1207,12 +1272,12 @@ while true; do
   echo "$STATUS_RESPONSE" | jq -c '.run_groups[]' 2>/dev/null | while IFS= read -r group; do
     GROUP_NAME=$(echo "$group" | jq -r '.name')
 
-    echo "$group" | jq -c '.runs[]' 2>/dev/null | while IFS= read -r flow; do
+    echo "$group" | jq -c '(.runs // [])[], ((.snoozed_runs // [])[] | .status = "snoozed")' 2>/dev/null | while IFS= read -r flow; do
       FLOW_STATUS=$(echo "$flow" | jq -r '.status')
       FLOW_ID=$(echo "$flow" | jq -r '.id')
 
       case "$FLOW_STATUS" in
-        passed|failed|error|terminated|skipped) : ;;
+        passed|failed|error|terminated|skipped|snoozed) : ;;
         *) continue ;;
       esac
 
@@ -1238,6 +1303,7 @@ while true; do
         error)      printf "    ⚠ %-40s ERROR    %s\n" "$FLOW_NAME" "$FLOW_URL" ;;
         terminated) printf "    ■ %-40s TERMINATED\n" "$FLOW_NAME" ;;
         skipped)    printf "    → %-40s SKIPPED\n" "$FLOW_NAME" ;;
+        snoozed)    printf "    ☾ %-40s SNOOZED\n" "$FLOW_NAME" ;;
       esac
 
       REVIEW_SUMMARY=$(echo "$flow" | jq -r '.summary // empty')
@@ -1270,6 +1336,7 @@ FAILED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.failed_flows // 0')
 ERROR_COUNT=$(echo "$STATUS_RESPONSE" | jq -r '.summary.error_flows // 0')
 TERMINATED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.terminated_flows // 0')
 SKIPPED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.skipped_flows // 0')
+SNOOZED=$(echo "$STATUS_RESPONSE" | jq -r '.summary.snoozed_flows // 0')
 
 echo "   Suites:  $PASSED_GROUPS/$TOTAL_GROUPS passed"
 echo "   Flows:   $PASSED/$TOTAL passed"
@@ -1277,6 +1344,7 @@ echo "   Flows:   $PASSED/$TOTAL passed"
 [ "$ERROR_COUNT" != "0" ] && echo "   Error:   $ERROR_COUNT"
 [ "$TERMINATED" != "0" ] && echo "   Terminated: $TERMINATED"
 [ "$SKIPPED" != "0" ] && echo "   Skipped: $SKIPPED"
+[ "$SNOOZED" != "0" ] && echo "   Snoozed: $SNOOZED"
 echo ""
 
 # API totals exclude skips and already fold passing retries into passed_flows.
@@ -1304,8 +1372,13 @@ if [ "$BAD_GROUPS" -gt 0 ]; then
   exit 1
 fi
 
+SNOOZED_NOTE=""
+[ "$SNOOZED" -gt 0 ] && SNOOZED_NOTE=" ($SNOOZED snoozed)"
 if [ "$TOTAL" -gt 0 ] && [ "$PASSED" -eq "$TOTAL" ]; then
-  echo "✅ All flows passed ($PASSED/$TOTAL)."
+  echo "✅ All flows passed ($PASSED/$TOTAL)$SNOOZED_NOTE."
+  exit 0
+elif [ "$TOTAL" -eq 0 ] && [ "$PASSED" -eq 0 ] && [ "$SNOOZED" -gt 0 ]; then
+  echo "✅ 0 ran, all $SNOOZED snoozed."
   exit 0
 elif [ "$TOTAL" -eq 0 ] && [ "$PASSED" -eq 0 ]; then
   echo "❌ No flows ran (TOTAL=$TOTAL). Refusing to report success."

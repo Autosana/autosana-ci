@@ -37,6 +37,9 @@ inputs:
   devices:
     description: "[Mobile runs] JSON array of exactly two ordered device selections with physical, model, os_version, and match fields as needed. Use it instead of physical-device, device-model, and os-version to choose each device of a two-device flow; one-device flows in the same run use the first entry."
     required: false
+  private-device:
+    description: "[Mobile runs] ID or name of one of your private devices. Runs the triggered flows on that phone. Prefer the ID in CI, because a name can be changed in the dashboard. Implies physical-device: true. Do not combine it with devices, device-model, os-version, model-match, os-version-match, or location."
+    required: false
 
   # Web-specific inputs (required when platform is web). app-id is also optional for mobile.
   app-id:
@@ -137,6 +140,7 @@ runs:
         MODEL_MATCH: ${{ inputs.model-match }}
         OS_VERSION_MATCH: ${{ inputs.os-version-match }}
         DEVICES: ${{ inputs.devices }}
+        PRIVATE_DEVICE: ${{ inputs.private-device }}
         # Web inputs
         APP_ID: ${{ inputs.app-id }}
         URL: ${{ inputs.url }}
