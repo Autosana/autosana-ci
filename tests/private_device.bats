@@ -62,6 +62,34 @@ _assert_run_device() {
     _assert_refused_before_upload "'private-device' name is longer than 100 characters"
 }
 
+@test "a name with quotes and a backslash is sent escaped" {
+    export PRIVATE_DEVICE=$'Amrit\'s "QA" \\ phone'
+    _assert_run_device '{"physical": true, "private_device_name": "Amrit'\''s \"QA\" \\ phone"}'
+}
+
+@test "a name that contains hex is sent as a name" {
+    export PRIVATE_DEVICE="Pixel 00008110-001A2D3E4F56801E"
+    _assert_run_device '{"physical": true, "private_device_name": "Pixel 00008110-001A2D3E4F56801E"}'
+}
+
+@test "private-device refuses true and false" {
+    for value in "true" " TRUE " "False"; do
+        export PRIVATE_DEVICE="$value"
+        _assert_refused_before_upload "private-device takes a device ID or name, not true/false."
+    done
+}
+
+@test "private-device refuses a modern iOS UDID" {
+    export PRIVATE_DEVICE="00008110-001a2D3E4F56801E"
+    _assert_refused_before_upload "'private-device' looks like a UDID"
+    assert_output --partial "A UDID is neither the device's ID nor its name."
+}
+
+@test "private-device refuses a legacy iOS UDID" {
+    export PRIVATE_DEVICE="  0123456789abcdefABCDEF0123456789abcdef01 "
+    _assert_refused_before_upload "'private-device' looks like a UDID"
+}
+
 @test "a whitespace-only private-device is refused" {
     export PRIVATE_DEVICE=$' \t '
     _assert_refused_before_upload "'private-device' is blank"

@@ -203,8 +203,11 @@ and name (`nickname`). Send your API key in the `X-API-Key` header.
     private-device: 3f1c2a4e-9b7d-4c1a-8e2f-0a1b2c3d4e5f
 ```
 
-A name also works, matched without regard to case, such as `private-device: QA iPhone 15`.
-A device's UDID (from the **Copy UDID** button) is neither its ID nor its name.
+A name also works, matched without regard to case, such as
+`private-device: "QA iPhone 15"`. Put names in quotes: YAML reads ` #` as the
+start of a comment, and `: ` breaks the file. A value shaped like an ID is
+always read as an ID. A device's UDID (from the **Copy UDID** button) is neither
+its ID nor its name. The action refuses a value shaped like an iOS UDID.
 
 Do not combine it with `devices`, `device-model`, `os-version`, `model-match`,
 `os-version-match`, or `location`. Two-device flows cannot run on a private

@@ -281,6 +281,19 @@ if [ -n "${PRIVATE_DEVICE:-}" ]; then
     echo "   Set it to a private device ID or name, or remove it from this step."
     exit 1
   fi
+  case "$PRIVATE_DEVICE_VALUE" in
+    [Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])
+      echo "❌ ERROR: private-device takes a device ID or name, not true/false."
+      echo "   To run on any real device instead, use physical-device: true."
+      exit 1
+      ;;
+  esac
+  if [[ "$PRIVATE_DEVICE_VALUE" =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}$ || "$PRIVATE_DEVICE_VALUE" =~ ^[0-9A-Fa-f]{40}$ ]]; then
+    echo "❌ ERROR: 'private-device' looks like a UDID."
+    echo "   A UDID is neither the device's ID nor its name."
+    echo "   Use the ID from the device page address, right after /devices/, or the device name."
+    exit 1
+  fi
   if [[ "$PRIVATE_DEVICE_VALUE" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
     PRIVATE_DEVICE_JSON=$(jq -cn --arg id "$(printf '%s' "$PRIVATE_DEVICE_VALUE" | tr '[:upper:]' '[:lower:]')" '{physical: true, private_device_id: $id}')
   elif [ "$(jq -rn --arg name "$PRIVATE_DEVICE_VALUE" '$name | length')" -gt 100 ]; then
