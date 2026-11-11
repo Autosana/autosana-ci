@@ -267,6 +267,28 @@ if [ -n "$LOCALE_CODE" ] && [ "$PLATFORM" = "chrome-extension" ]; then
   exit 1
 fi
 
+# Private device: one of the company's own phones. The backend checks ownership and platform.
+PRIVATE_DEVICE_ID_VALUE=$(printf '%s' "${PRIVATE_DEVICE_ID:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')
+if [ -n "$PRIVATE_DEVICE_ID_VALUE" ]; then
+  if ! echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
+    echo "❌ ERROR: 'private-device-id' is supported only for Android and iOS runs."
+    echo "   Remove it from this '$PLATFORM' step."
+    exit 1
+  fi
+  if [[ ! "$PRIVATE_DEVICE_ID_VALUE" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
+    echo "❌ ERROR: 'private-device-id' must be a device UUID, such as 3f1c2a4e-9b7d-4c1a-8e2f-0a1b2c3d4e5f."
+    echo "   Provided: '$PRIVATE_DEVICE_ID'"
+    exit 1
+  fi
+  for device_input in "devices:$DEVICES" "device-model:$DEVICE_MODEL" "os-version:$OS_VERSION" "model-match:${MODEL_MATCH:-}" "os-version-match:${OS_VERSION_MATCH:-}"; do
+    if [ -n "$(printf '%s' "${device_input#*:}" | tr -d '[:space:]')" ]; then
+      echo "❌ ERROR: 'private-device-id' cannot be combined with '${device_input%%:*}'."
+      echo "   A private device is one specific phone. Remove '${device_input%%:*}' from this step."
+      exit 1
+    fi
+  done
+fi
+
 # A deployment can target a different commit from the trusted workflow checkout.
 # Keep checkout-based detection for other events (including intentional custom refs).
 PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "${GITHUB_EVENT_PATH:-}" 2>/dev/null || true)
@@ -1023,6 +1045,7 @@ else
     --arg model_match "$MODEL_MATCH_LOWER" \
     --arg os_version_match "$OS_VERSION_MATCH_LOWER" \
     --arg devices_provided "$DEVICES_PROVIDED" \
+    --arg private_device_id "$PRIVATE_DEVICE_ID_VALUE" \
     --arg location "$LOCATION_CODE" \
     --arg locale "$LOCALE_CODE" \
     --arg key_selector_mode "$KEY_SELECTOR_MODE" \
@@ -1045,7 +1068,9 @@ else
           + (if $folder_ids != [] then {folder_ids: $folder_ids} else {} end) end)
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
-     + (if $devices_provided == "true"
+     + (if $private_device_id != ""
+        then {device: {physical: true, private_device_id: $private_device_id}}
+        elif $devices_provided == "true"
         then {devices: $devices}
         elif $physical_device == "true" or $device_model != "" or $os_version != ""
         then {device: ({physical: ($physical_device == "true")}
