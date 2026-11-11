@@ -84,7 +84,7 @@ Shared optional inputs:
 - `model-match`: Real-device runs only. `similar` (default) lets a busy pinned `device-model` fall back to a similar free model; `exact` keeps that model.
 - `os-version-match`: Real-device runs only. `similar` (default) lets a busy pinned `os-version` fall back to a nearby version; `exact` keeps that version. With nothing acceptable free, runs wait up to 5 minutes, then fail.
 - `devices`: Mobile runs only. JSON array of exactly two ordered device selections, used instead of the device inputs above to choose each device of a two-device flow. One-device flows in the same run use the first entry.
-- `private-device-id`: Mobile runs only. ID of one of your private devices (your own phones). Runs the triggered flows on that phone. Implies `physical-device: true`. See [Run on a private device](#run-on-a-private-device).
+- `private-device`: Mobile runs only. ID or name of one of your private devices (your own phones). Runs the triggered flows on that phone. Implies `physical-device: true`. See [Run on a private device](#run-on-a-private-device).
 
 Direct test runs resolve code-managed flows, suites, and labels from the exact
 checked-out commit. GitHub repository metadata and a full commit SHA are required
@@ -183,14 +183,14 @@ virtual devices.
 
 ### Run on a private device
 
-To run on one of your own phones, pass its ID through `private-device-id`. It
-implies `physical-device: true`. The phone must run the same platform as the upload.
+To run on one of your own phones, pass its ID or name through `private-device`.
+It implies `physical-device: true`. The phone must run the same platform as the upload.
 
-To find the ID, open the device in the Autosana dashboard and copy the part of
-the page address right after `/devices/` (`/devices/<id>`). Do not use the UDID
-from the **Copy UDID** button. You can also list your private devices and their
-`id` with `GET /api/v1/devices/private`, using your API key in the `X-API-Key`
-header.
+Use the ID in CI, because a device's name can be changed in the dashboard. To
+find the ID, open the device in the Autosana dashboard and copy the part of the
+page address right after `/devices/` (`/devices/<id>`).
+`GET /api/v1/devices/private` also lists your private devices with their `id`
+and name (`nickname`). Send your API key in the `X-API-Key` header.
 
 ```yaml
 - uses: autosana/autosana-ci@main
@@ -200,8 +200,14 @@ header.
     bundle-id: com.example.app
     build-path: build/MyApp.ipa
     labels: "smoke"
-    private-device-id: 3f1c2a4e-9b7d-4c1a-8e2f-0a1b2c3d4e5f
+    private-device: 3f1c2a4e-9b7d-4c1a-8e2f-0a1b2c3d4e5f
 ```
+
+A name also works, matched without regard to case, such as
+`private-device: "QA iPhone 15"`. Put names in quotes: YAML reads ` #` as the
+start of a comment, and `: ` breaks the file. A value shaped like an ID is
+always read as an ID. A device's UDID (from the **Copy UDID** button) is neither
+its ID nor its name. The action refuses a value shaped like an iOS UDID.
 
 Do not combine it with `devices`, `device-model`, `os-version`, `model-match`,
 `os-version-match`, or `location`. Two-device flows cannot run on a private

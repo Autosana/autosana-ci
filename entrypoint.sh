@@ -267,36 +267,56 @@ if [ -n "$LOCALE_CODE" ] && [ "$PLATFORM" = "chrome-extension" ]; then
   exit 1
 fi
 
-# Private device: one of the company's own phones. The backend checks ownership and platform.
-PRIVATE_DEVICE_ID_VALUE=$(printf '%s' "${PRIVATE_DEVICE_ID:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')
-if [ -n "$PRIVATE_DEVICE_ID_VALUE" ]; then
+# Private device: one of the company's own phones, by ID or name. The backend checks ownership and platform.
+PRIVATE_DEVICE_JSON="null"
+if [ -n "${PRIVATE_DEVICE:-}" ]; then
   if ! echo "$PLATFORM" | grep -qE '^(android|ios)$'; then
-    echo "❌ ERROR: 'private-device-id' is supported only for Android and iOS runs."
+    echo "❌ ERROR: 'private-device' is supported only for Android and iOS runs."
     echo "   Remove it from this '$PLATFORM' step."
     exit 1
   fi
-  if [[ ! "$PRIVATE_DEVICE_ID_VALUE" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
-    echo "❌ ERROR: 'private-device-id' must be a device UUID, such as 3f1c2a4e-9b7d-4c1a-8e2f-0a1b2c3d4e5f."
-    echo "   Open the device in the Autosana dashboard. Copy the part of the page address right after /devices/."
-    echo "   Use that ID, not the UDID."
-    echo "   GET /api/v1/devices/private also lists your private devices with their id."
-    echo "   Provided: '$PRIVATE_DEVICE_ID'"
+  PRIVATE_DEVICE_VALUE=$(printf '%s' "$PRIVATE_DEVICE" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+  if [ -z "$PRIVATE_DEVICE_VALUE" ]; then
+    echo "❌ ERROR: 'private-device' is blank."
+    echo "   Set it to a private device ID or name, or remove it from this step."
     exit 1
+  fi
+  case "$PRIVATE_DEVICE_VALUE" in
+    [Tt][Rr][Uu][Ee]|[Ff][Aa][Ll][Ss][Ee])
+      echo "❌ ERROR: private-device takes a device ID or name, not true/false."
+      echo "   To run on any real device instead, use physical-device: true."
+      exit 1
+      ;;
+  esac
+  if [[ "$PRIVATE_DEVICE_VALUE" =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}$ || "$PRIVATE_DEVICE_VALUE" =~ ^[0-9A-Fa-f]{40}$ ]]; then
+    echo "❌ ERROR: 'private-device' looks like a UDID."
+    echo "   A UDID is neither the device's ID nor its name."
+    echo "   Use the ID from the device page address, right after /devices/, or the device name."
+    exit 1
+  fi
+  if [[ "$PRIVATE_DEVICE_VALUE" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+    PRIVATE_DEVICE_JSON=$(jq -cn --arg id "$(printf '%s' "$PRIVATE_DEVICE_VALUE" | tr '[:upper:]' '[:lower:]')" '{physical: true, private_device_id: $id}')
+  elif [ "$(jq -rn --arg name "$PRIVATE_DEVICE_VALUE" '$name | length')" -gt 100 ]; then
+    echo "❌ ERROR: 'private-device' name is longer than 100 characters."
+    echo "   Use the device ID, or the device name exactly as the dashboard shows it."
+    exit 1
+  else
+    PRIVATE_DEVICE_JSON=$(jq -cn --arg name "$PRIVATE_DEVICE_VALUE" '{physical: true, private_device_name: $name}')
   fi
   for device_input in "devices:$DEVICES" "device-model:$DEVICE_MODEL" "os-version:$OS_VERSION" "model-match:${MODEL_MATCH:-}" "os-version-match:${OS_VERSION_MATCH:-}"; do
     if [ -n "$(printf '%s' "${device_input#*:}" | tr -d '[:space:]')" ]; then
-      echo "❌ ERROR: 'private-device-id' cannot be combined with '${device_input%%:*}'."
+      echo "❌ ERROR: 'private-device' cannot be combined with '${device_input%%:*}'."
       echo "   A private device is one specific phone. Remove '${device_input%%:*}' from this step."
       exit 1
     fi
   done
   if [ -n "$LOCATION_CODE" ]; then
-    echo "❌ ERROR: 'private-device-id' cannot be combined with 'location'."
+    echo "❌ ERROR: 'private-device' cannot be combined with 'location'."
     echo "   Private devices do not support a run location yet. Remove 'location' from this step."
     exit 1
   fi
   if ! has_test_selector; then
-    echo "⚠️  'private-device-id' applies only when tests are selected; ignoring it because no flow, suite, folder, or label is selected."
+    echo "⚠️  'private-device' applies only when tests are selected; ignoring it because no flow, suite, folder, or label is selected."
   fi
 fi
 
@@ -1056,7 +1076,7 @@ else
     --arg model_match "$MODEL_MATCH_LOWER" \
     --arg os_version_match "$OS_VERSION_MATCH_LOWER" \
     --arg devices_provided "$DEVICES_PROVIDED" \
-    --arg private_device_id "$PRIVATE_DEVICE_ID_VALUE" \
+    --argjson private_device "$PRIVATE_DEVICE_JSON" \
     --arg location "$LOCATION_CODE" \
     --arg locale "$LOCALE_CODE" \
     --arg key_selector_mode "$KEY_SELECTOR_MODE" \
@@ -1079,8 +1099,8 @@ else
           + (if $folder_ids != [] then {folder_ids: $folder_ids} else {} end) end)
      + (if $environment != "" then {environment: $environment} else {} end)
      + (if $variables != "" then {variables: $variables} else {} end)
-     + (if $private_device_id != ""
-        then {device: {physical: true, private_device_id: $private_device_id}}
+     + (if $private_device != null
+        then {device: $private_device}
         elif $devices_provided == "true"
         then {devices: $devices}
         elif $physical_device == "true" or $device_model != "" or $os_version != ""
