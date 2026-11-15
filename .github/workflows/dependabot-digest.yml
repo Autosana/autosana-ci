@@ -5,8 +5,8 @@ name: Dependabot digest
 # #auto-pull-requests-for-review: majors (no auto-merge) and any with a failing check. PRs
 # still waiting to auto-merge are skipped, since they merge on their own. A PR that stays
 # open is posted again each weekday until it is handled, on purpose. A check is judged by
-# its latest run on the commit, so a superseded run (cancelled or re-run) does not count
-# as failing. Days with no such
+# its latest run on the commit, so a superseded run does not count as failing, and a
+# cancelled run never does. Days with no such
 # PRs post nothing.
 on:
   schedule:
@@ -39,7 +39,7 @@ jobs:
             gh pr view "$number" --repo "$GITHUB_REPOSITORY" \
               --json title,url,autoMergeRequest,statusCheckRollup \
               --jq '([.statusCheckRollup[]?] | group_by([.workflowName, (.name // .context)]) | map(max_by(.startedAt))) as $latest
-                | (any($latest[]; (.conclusion // .state) | IN("FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "STARTUP_FAILURE", "ACTION_REQUIRED"))) as $failing
+                | (any($latest[]; (.conclusion // .state) | IN("FAILURE", "ERROR", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"))) as $failing
                 | select(.autoMergeRequest == null or $failing)
                 | "• <\(.url)|\(.title)>" + (if $failing then " (CI failing)" else "" end)' || exit 1
           done)
