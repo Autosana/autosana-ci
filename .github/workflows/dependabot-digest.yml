@@ -2,7 +2,7 @@ name: Dependabot digest
 
 # Every weekday, a few hours after Dependabot's 6am PT run (daily Dependabot runs skip
 # weekends), posts this repo's Dependabot PRs that need a person to
-# #pull-requests-for-review: majors (no auto-merge) and any with a failing check. PRs
+# #auto-pull-requests-for-review: majors (no auto-merge) and any with a failing check. PRs
 # still waiting to auto-merge are skipped, since they merge on their own. A PR that stays
 # open is posted again each weekday until it is handled, on purpose. Days with no such
 # PRs post nothing.
@@ -25,7 +25,8 @@ jobs:
       - name: Post open Dependabot PRs to Slack
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_PR_REVIEW_WEBHOOK }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_FEEDBACK_MACHINE_BOT_TOKEN }}
+          SLACK_CHANNEL: C0CJPCVANPJ # #auto-pull-requests-for-review
           REVIEWERS: "<@U08NR4GT37H>"
         run: |
           prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --author app/dependabot --state open \
@@ -39,5 +40,11 @@ jobs:
             exit 0
           fi
           text="$REVIEWERS Dependabot PRs ready to review (${GITHUB_REPOSITORY#*/})"$'\n'"$prs"
-          jq -n --arg text "$text" '{text: $text}' \
-            | curl -fsS -X POST -H 'Content-Type: application/json' --data @- "$SLACK_WEBHOOK_URL"
+          # Slack answers 200 even when the post fails, so check `ok`.
+          response=$(jq -n --arg channel "$SLACK_CHANNEL" --arg text "$text" \
+            '{channel: $channel, text: $text, unfurl_links: false, unfurl_media: false}' \
+            | curl -fsS -X POST -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              -H 'Content-Type: application/json; charset=utf-8' --data @- \
+              https://slack.com/api/chat.postMessage)
+          jq -e '.ok' <<<"$response" >/dev/null \
+            || { echo "Slack post failed: $(jq -r '.error' <<<"$response")"; exit 1; }
