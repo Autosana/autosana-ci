@@ -154,7 +154,7 @@ OTHER_UUID="7a2b9c1d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
     export PRIVATE_DEVICE="QA Pixel"
     export DEVICE_MODEL="latest"
     _assert_refused_before_upload "'private-device' cannot be combined with 'device-model'"
-    refute_output --partial "To run a two-device flow on private devices, name each one in a devices entry instead."
+    refute_output --partial "For a two-device flow, remove 'private-device' instead and name each private device in a devices entry."
 }
 
 @test "private-device cannot be combined with os-version" {
@@ -268,7 +268,7 @@ OTHER_UUID="7a2b9c1d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
     export PRIVATE_DEVICE="$DEVICE_UUID"
     export DEVICES="[{\"private_device_id\": \"$OTHER_UUID\"}, {\"physical\": true}]"
     _assert_refused_before_upload "'private-device' cannot be combined with 'devices'"
-    assert_output --partial "To run a two-device flow on private devices, name each one in a devices entry instead."
+    assert_output --partial "For a two-device flow, remove 'private-device' instead and name each private device in a devices entry."
 }
 
 @test "web: a private devices entry is ignored with the mobile-only warning" {

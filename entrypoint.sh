@@ -308,7 +308,7 @@ if [ -n "${PRIVATE_DEVICE:-}" ]; then
       echo "❌ ERROR: 'private-device' cannot be combined with '${device_input%%:*}'."
       echo "   A private device is one specific phone. Remove '${device_input%%:*}' from this step."
       if [ "${device_input%%:*}" = "devices" ]; then
-        echo "   To run a two-device flow on private devices, name each one in a devices entry instead."
+        echo "   For a two-device flow, remove 'private-device' instead and name each private device in a devices entry."
       fi
       exit 1
     fi
