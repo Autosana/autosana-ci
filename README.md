@@ -220,8 +220,8 @@ use it. Name a private device in a `devices` entry instead, with
 `private_device_id` (best in CI) or `private_device_name` (matched without regard
 to case, up to 100 characters). Set only one of them in an entry, and no
 `model`, `os_version`, or `match`. Leave out `physical` or set it to `true`. The
-other entry can be another private device or a shared real device, but not the
-same device:
+other entry can be another private device or a shared real device
+(`"physical": true`), but not the same device:
 
 ```yaml
     devices: |
