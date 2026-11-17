@@ -860,6 +860,7 @@ if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
       echo "❌ ERROR: devices must be a JSON array containing exactly two objects."
       exit 1
     fi
+    # kcov-ignore-start
     if ! echo "$DEVICES_JSON" | jq -e '
       all(.[];
         ((keys_unsorted - ["physical", "model", "os_version", "match", "private_device_id", "private_device_name"]) | length == 0)
@@ -875,32 +876,39 @@ if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
         and ((has("private_device_name") | not) or ((.private_device_name | type) == "string"))
       )
     ' >/dev/null; then
+    # kcov-ignore-end
       echo "❌ ERROR: each device may only contain physical, model, os_version, match, private_device_id, and private_device_name ({\"model\": ..., \"os_version\": ...} for match, each \"similar\" or \"exact\", lowercase) with valid values."
       exit 1
     fi
+    # kcov-ignore-start
     DEVICES_JSON=$(echo "$DEVICES_JSON" | jq -c '
       map(
         if has("private_device_id") then .private_device_id |= (gsub("^\\s+|\\s+$"; "") | ascii_downcase) else . end
         | if has("private_device_name") then .private_device_name |= gsub("^\\s+|\\s+$"; "") else . end
       )
     ')
+    # kcov-ignore-end
     if ! echo "$DEVICES_JSON" | jq -e 'all(.[]; (has("private_device_id") and has("private_device_name")) | not)' >/dev/null; then
       echo "❌ ERROR: a device may set private_device_id or private_device_name, not both."
       exit 1
     fi
+    # kcov-ignore-start
     if ! echo "$DEVICES_JSON" | jq -e '
       all(.[] | select(has("private_device_id") or has("private_device_name"));
         .model == null and .os_version == null and .match == null
         and ((has("physical") | not) or .physical == true))
     ' >/dev/null; then
+    # kcov-ignore-end
       echo "❌ ERROR: a private device cannot set model, os_version, or match, or physical: false."
       echo "   A private device is one specific phone. Remove those fields from that device."
       exit 1
     fi
+    # kcov-ignore-start
     if ! echo "$DEVICES_JSON" | jq -e '
       all(.[] | select(has("private_device_id"));
         .private_device_id | test("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"))
     ' >/dev/null; then
+    # kcov-ignore-end
       echo "❌ ERROR: private_device_id must be a device ID."
       echo "   Use the ID from the device page address, right after /devices/, or set private_device_name instead."
       exit 1
@@ -915,20 +923,24 @@ if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
       echo "   Use private_device_id, or the device name exactly as the dashboard shows it."
       exit 1
     fi
+    # kcov-ignore-start
     if ! echo "$DEVICES_JSON" | jq -e '
       all(.[] | select(has("private_device_name"));
         .private_device_name | (test("^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}$") or test("^[0-9A-Fa-f]{40}$")) | not)
     ' >/dev/null; then
+    # kcov-ignore-end
       echo "❌ ERROR: private_device_name looks like a UDID."
       echo "   A UDID is neither the device's ID nor its name."
       echo "   Use the ID from the device page address, right after /devices/, or the device name."
       exit 1
     fi
+    # kcov-ignore-start
     if ! echo "$DEVICES_JSON" | jq -e '
       (.[0].private_device_id == null or .[0].private_device_id != .[1].private_device_id)
       and (.[0].private_device_name == null or .[1].private_device_name == null
         or (.[0].private_device_name | ascii_downcase) != (.[1].private_device_name | ascii_downcase))
     ' >/dev/null; then
+    # kcov-ignore-end
       echo "❌ ERROR: both devices name the same private device."
       echo "   Choose a different private device for each."
       exit 1
@@ -939,9 +951,11 @@ if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
         echo "   Private devices do not support a run location yet. Remove 'location' from this step."
         exit 1
       fi
+      # kcov-ignore-start
       if ! echo "$DEVICES_JSON" | jq -e '
         all(.[] | select((has("private_device_id") or has("private_device_name")) | not); .physical == true)
       ' >/dev/null; then
+      # kcov-ignore-end
         echo "❌ ERROR: A private device can only be paired with another private device or a shared real device."
         echo "   Set \"physical\": true on the other devices entry."
         exit 1
