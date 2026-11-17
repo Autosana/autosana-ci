@@ -35,7 +35,7 @@ inputs:
     description: "[Real-device runs] 'similar' (default): if no free device has the pinned os-version, a nearby version may be used. 'exact': only that OS version, waiting up to 5 minutes before failing."
     required: false
   devices:
-    description: "[Mobile runs] JSON array of exactly two ordered device selections with physical, model, os_version, and match fields as needed. Use it instead of physical-device, device-model, and os-version to choose each device of a two-device flow; one-device flows in the same run use the first entry."
+    description: "[Mobile runs] JSON array of exactly two ordered device selections with physical, model, os_version, and match fields as needed. Use it instead of physical-device, device-model, and os-version to choose each device of a two-device flow; one-device flows in the same run use the first entry. An entry can instead name a private device with private_device_id or private_device_name. Set only one of these fields in an entry, and no model, os_version, or match."
     required: false
   private-device:
     description: "[Mobile runs] ID or name of one of your private devices. Runs the triggered flows on that phone. Prefer the ID in CI, because a name can be changed in the dashboard. Implies physical-device: true. Do not combine it with devices, device-model, os-version, model-match, os-version-match, or location."
