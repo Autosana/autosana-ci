@@ -2,9 +2,11 @@ name: Dependabot digest
 
 # Every weekday, a few hours after Dependabot's 6am PT run (daily Dependabot runs skip
 # weekends), posts this repo's Dependabot PRs that need a person to
-# #pull-requests-for-review: majors (no auto-merge) and any with a failing check. PRs
+# #auto-pull-requests-for-review: majors (no auto-merge) and any with a failing check. PRs
 # still waiting to auto-merge are skipped, since they merge on their own. A PR that stays
-# open is posted again each weekday until it is handled, on purpose. Days with no such
+# open is posted again each weekday until it is handled, on purpose. A check is judged by
+# its latest run on the commit, so a superseded run does not count as failing, and a
+# cancelled run never does. Days with no such
 # PRs post nothing.
 on:
   schedule:
@@ -25,19 +27,32 @@ jobs:
       - name: Post open Dependabot PRs to Slack
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_PR_REVIEW_WEBHOOK }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_FEEDBACK_MACHINE_BOT_TOKEN }}
+          SLACK_CHANNEL: C0CJPCVANPJ # #auto-pull-requests-for-review
           REVIEWERS: "<@U08NR4GT37H>"
         run: |
-          prs=$(gh pr list --repo "$GITHUB_REPOSITORY" --author app/dependabot --state open \
-            --json title,url,autoMergeRequest,statusCheckRollup \
-            --jq '.[]
-              | (any(.statusCheckRollup[]?; (.conclusion // .state) | IN("FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "STARTUP_FAILURE", "ACTION_REQUIRED"))) as $failing
-              | select(.autoMergeRequest == null or $failing)
-              | "• <\(.url)|\(.title)>" + (if $failing then " (CI failing)" else "" end)')
+          # gh pr list returns only the first 100 check runs per PR, which can hide a
+          # failing one, so read each PR on its own.
+          numbers=$(gh pr list --repo "$GITHUB_REPOSITORY" --author app/dependabot --state open \
+            --json number --jq '.[].number')
+          prs=$(for number in $numbers; do
+            gh pr view "$number" --repo "$GITHUB_REPOSITORY" \
+              --json title,url,autoMergeRequest,statusCheckRollup \
+              --jq '([.statusCheckRollup[]?] | group_by([.workflowName, (.name // .context)]) | map(max_by(.startedAt))) as $latest
+                | (any($latest[]; (.conclusion // .state) | IN("FAILURE", "ERROR", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"))) as $failing
+                | select(.autoMergeRequest == null or $failing)
+                | "• <\(.url)|\(.title)>" + (if $failing then " (CI failing)" else "" end)' || exit 1
+          done)
           if [ -z "$prs" ]; then
             echo "No open Dependabot PRs."
             exit 0
           fi
           text="$REVIEWERS Dependabot PRs ready to review (${GITHUB_REPOSITORY#*/})"$'\n'"$prs"
-          jq -n --arg text "$text" '{text: $text}' \
-            | curl -fsS -X POST -H 'Content-Type: application/json' --data @- "$SLACK_WEBHOOK_URL"
+          # Slack answers 200 even when the post fails, so check `ok`.
+          response=$(jq -n --arg channel "$SLACK_CHANNEL" --arg text "$text" \
+            '{channel: $channel, text: $text, unfurl_links: false, unfurl_media: false}' \
+            | curl -fsS -X POST -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+              -H 'Content-Type: application/json; charset=utf-8' --data @- \
+              https://slack.com/api/chat.postMessage)
+          jq -e '.ok' <<<"$response" >/dev/null \
+            || { echo "Slack post failed: $(jq -r '.error' <<<"$response")"; exit 1; }
