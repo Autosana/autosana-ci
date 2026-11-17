@@ -933,6 +933,20 @@ if [ -n "$(echo "$DEVICES" | tr -d '[:space:]')" ]; then
       echo "   Choose a different private device for each."
       exit 1
     fi
+    if echo "$DEVICES_JSON" | jq -e 'any(.[]; has("private_device_id") or has("private_device_name"))' >/dev/null; then
+      if [ -n "$LOCATION_CODE" ]; then
+        echo "❌ ERROR: A private device in 'devices' cannot be combined with 'location'."
+        echo "   Private devices do not support a run location yet. Remove 'location' from this step."
+        exit 1
+      fi
+      if ! echo "$DEVICES_JSON" | jq -e '
+        all(.[] | select((has("private_device_id") or has("private_device_name")) | not); .physical == true)
+      ' >/dev/null; then
+        echo "❌ ERROR: A private device can only be paired with another private device or a shared real device."
+        echo "   Set \"physical\": true on the other devices entry."
+        exit 1
+      fi
+    fi
     if ! echo "$DEVICES_JSON" | jq -e '
       all(.[];
         ((.model // null) == null or (.model | test("\\S")))

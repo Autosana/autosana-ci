@@ -264,6 +264,31 @@ OTHER_UUID="7a2b9c1d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
     _assert_refused_before_run "both devices name the same private device"
 }
 
+@test "devices: a private devices entry cannot be combined with location" {
+    export DEVICES="[{\"private_device_id\": \"$DEVICE_UUID\"}, {\"physical\": true}]"
+    export LOCATION="US"
+    _assert_refused_before_run "A private device in 'devices' cannot be combined with 'location'."
+    assert_output --partial "Private devices do not support a run location yet. Remove 'location' from this step."
+}
+
+@test "devices: location with a shared-only devices pair is not refused by the action" {
+    export DEVICES='[{"physical": true}, {"physical": false}]'
+    export LOCATION="US"
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    refute_output --partial "A private device in 'devices' cannot be combined with 'location'."
+}
+
+@test "devices: a private device cannot be paired with an emulator" {
+    for partner in '{"model": "Pixel 9"}' '{"physical": false}'; do
+        export DEVICES="[{\"private_device_id\": \"$DEVICE_UUID\"}, $partner]"
+        _assert_refused_before_run "A private device can only be paired with another private device or a shared real device."
+        assert_output --partial 'Set "physical": true on the other devices entry.'
+    done
+}
+
 @test "private-device cannot be combined with a private devices entry" {
     export PRIVATE_DEVICE="$DEVICE_UUID"
     export DEVICES="[{\"private_device_id\": \"$OTHER_UUID\"}, {\"physical\": true}]"

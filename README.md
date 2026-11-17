@@ -231,6 +231,8 @@ other entry can be another private device or a shared real device
       ]
 ```
 
+A step with a private device in `devices` cannot set `location`.
+
 ### Fire-and-forget runs
 
 By default, when you pass a flow, suite, or label selector, the action waits for the flows to finish so the job's exit code reflects the test result. To instead trigger the runs and let CI move on while tests execute on Autosana, set `wait: false`:
