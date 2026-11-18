@@ -357,7 +357,7 @@ setup() {
     run bash "$ENTRYPOINT"
 
     assert_failure
-    assert_output --partial "each device may only contain physical, model, os_version, and match"
+    assert_output --partial "each device may only contain physical, model, os_version, match, private_device_id, and private_device_name"
     refute_output --partial "Triggering flows"
 }
 
