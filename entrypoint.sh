@@ -325,13 +325,14 @@ fi
 
 # At most this many of the tests this step starts run at the same time; the rest wait.
 MAX_TESTS_AT_ONCE_JSON="null"
-if [ -n "${MAX_TESTS_AT_ONCE:-}" ]; then
-  if [[ ! "$MAX_TESTS_AT_ONCE" =~ ^([1-9][0-9]{0,2}|1000)$ ]]; then
+MAX_TESTS_AT_ONCE_VALUE=$(printf '%s' "${MAX_TESTS_AT_ONCE:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+if [ -n "$MAX_TESTS_AT_ONCE_VALUE" ]; then
+  if [[ ! "$MAX_TESTS_AT_ONCE_VALUE" =~ ^([1-9][0-9]{0,2}|1000)$ ]]; then
     echo "❌ ERROR: max-tests-at-once must be a whole number from 1 to 1000."
     echo "   Provided: '$MAX_TESTS_AT_ONCE'"
     exit 1
   fi
-  MAX_TESTS_AT_ONCE_JSON="$MAX_TESTS_AT_ONCE"
+  MAX_TESTS_AT_ONCE_JSON="$MAX_TESTS_AT_ONCE_VALUE"
   if ! has_test_selector; then
     echo "⚠️  'max-tests-at-once' applies only when tests are selected; ignoring it because no flow, suite, folder, or label is selected."
     echo "   Runs that the upload starts use the limit saved on each automation."

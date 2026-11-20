@@ -67,6 +67,24 @@ _assert_key_absent() {
     done
 }
 
+@test "max-tests-at-once is trimmed like other inputs" {
+    for value in " 3" "3 " $' \t3\n'; do
+        export MAX_TESTS_AT_ONCE="$value"
+        run bash "$ENTRYPOINT"
+        assert_success
+        _assert_run_sends 3
+    done
+}
+
+@test "a whitespace-only max-tests-at-once is treated as unset" {
+    export MAX_TESTS_AT_ONCE=$' \t '
+
+    run bash "$ENTRYPOINT"
+
+    assert_success
+    _assert_key_absent RUN_FLOWS
+}
+
 @test "android: max_tests_at_once is omitted when the input is empty" {
     run bash "$ENTRYPOINT"
 
@@ -85,7 +103,7 @@ _assert_key_absent() {
 }
 
 @test "invalid max-tests-at-once values fail before any request" {
-    for value in "0" "1001" "9999" "abc" "2.5" "-1" " 3" "3 " "03" "1e3" "+3" $'3\n'; do
+    for value in "0" "1001" "9999" "abc" "2.5" "-1" "03" "1e3" "+3" "3 4"; do
         rm -f "$MOCK_CURL_CALL_LOG"
         export MAX_TESTS_AT_ONCE="$value"
 
