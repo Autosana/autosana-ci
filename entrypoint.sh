@@ -323,18 +323,18 @@ if [ -n "${PRIVATE_DEVICE:-}" ]; then
   fi
 fi
 
-# At most this many of the tests this step starts run at the same time; the rest wait.
-MAX_TESTS_AT_ONCE_JSON="null"
-MAX_TESTS_AT_ONCE_VALUE=$(printf '%s' "${MAX_TESTS_AT_ONCE:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-if [ -n "$MAX_TESTS_AT_ONCE_VALUE" ]; then
-  if [[ ! "$MAX_TESTS_AT_ONCE_VALUE" =~ ^([1-9][0-9]{0,2}|1000)$ ]]; then
-    echo "❌ ERROR: max-tests-at-once must be a whole number from 1 to 1000."
-    echo "   Provided: '$MAX_TESTS_AT_ONCE'"
+# Of the tests this step starts, at most CONCURRENCY run concurrently.
+CONCURRENCY_JSON="null"
+CONCURRENCY_VALUE=$(printf '%s' "${CONCURRENCY:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+if [ -n "$CONCURRENCY_VALUE" ]; then
+  if [[ ! "$CONCURRENCY_VALUE" =~ ^([1-9][0-9]{0,2}|1000)$ ]]; then
+    echo "❌ ERROR: 'concurrency' must be a whole number from 1 to 1000."
+    echo "   Provided: '$CONCURRENCY'"
     exit 1
   fi
-  MAX_TESTS_AT_ONCE_JSON="$MAX_TESTS_AT_ONCE_VALUE"
+  CONCURRENCY_JSON="$CONCURRENCY_VALUE"
   if ! has_test_selector; then
-    echo "⚠️  'max-tests-at-once' applies only when tests are selected; ignoring it because no flow, suite, folder, or label is selected."
+    echo "⚠️  The action ignores 'concurrency' because this step selects no flow, suite, folder, or label."
     echo "   Runs that the upload starts use the limit saved on each automation."
   fi
 fi
@@ -1152,7 +1152,7 @@ if [ "$PLATFORM" = "web" ]; then
     --argjson folder_ids "$FOLDER_IDS_JSON" \
     --argjson folder_paths "$FOLDER_PATHS_JSON" \
     --argjson dependencies "$DEPENDENCIES_JSON" \
-    --argjson max_tests_at_once "$MAX_TESTS_AT_ONCE_JSON" \
+    --argjson max_tests_at_once "$CONCURRENCY_JSON" \
     '{app_id: $app_id, repo_full_name: $repo_full_name, ref: $ref}
      + (if $app_build_id != "" then {app_build_id: $app_build_id} else {} end)
      + (if $key_selector_mode == "true"
@@ -1196,7 +1196,7 @@ else
     --argjson labels "$LABELS_JSON" \
     --argjson folder_ids "$FOLDER_IDS_JSON" \
     --argjson folder_paths "$FOLDER_PATHS_JSON" \
-    --argjson max_tests_at_once "$MAX_TESTS_AT_ONCE_JSON" \
+    --argjson max_tests_at_once "$CONCURRENCY_JSON" \
     '{bundle_id: $bundle_id, platform: $platform, repo_full_name: $repo_full_name, ref: $ref}
      + (if $app_id != "" then {app_id: $app_id} else {} end)
      + (if $key_selector_mode == "true"
