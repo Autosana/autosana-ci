@@ -323,6 +323,22 @@ if [ -n "${PRIVATE_DEVICE:-}" ]; then
   fi
 fi
 
+# Of the tests this step starts, at most MAX_CONCURRENCY run concurrently.
+MAX_CONCURRENCY_JSON="null"
+MAX_CONCURRENCY_VALUE=$(printf '%s' "${MAX_CONCURRENCY:-}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+if [ -n "$MAX_CONCURRENCY_VALUE" ]; then
+  if [[ ! "$MAX_CONCURRENCY_VALUE" =~ ^([1-9][0-9]{0,2}|1000)$ ]]; then
+    echo "❌ ERROR: 'max-concurrency' must be a whole number from 1 to 1000."
+    echo "   Provided: '$MAX_CONCURRENCY'"
+    exit 1
+  fi
+  MAX_CONCURRENCY_JSON="$MAX_CONCURRENCY_VALUE"
+  if ! has_test_selector; then
+    echo "⚠️  The action ignores 'max-concurrency' because this step selects no flow, suite, folder, or label."
+    echo "   Runs that the upload starts use the limit saved on each automation."
+  fi
+fi
+
 # A deployment can target a different commit from the trusted workflow checkout.
 # Keep checkout-based detection for other events (including intentional custom refs).
 PR_HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "${GITHUB_EVENT_PATH:-}" 2>/dev/null || true)
@@ -1136,6 +1152,7 @@ if [ "$PLATFORM" = "web" ]; then
     --argjson folder_ids "$FOLDER_IDS_JSON" \
     --argjson folder_paths "$FOLDER_PATHS_JSON" \
     --argjson dependencies "$DEPENDENCIES_JSON" \
+    --argjson max_tests_at_once "$MAX_CONCURRENCY_JSON" \
     '{app_id: $app_id, repo_full_name: $repo_full_name, ref: $ref}
      + (if $app_build_id != "" then {app_build_id: $app_build_id} else {} end)
      + (if $key_selector_mode == "true"
@@ -1148,7 +1165,8 @@ if [ "$PLATFORM" = "web" ]; then
      + (if $web_browser != "" then {web_browser: $web_browser} else {} end)
      + (if $dependencies_provided == "true" then {dependencies: $dependencies} else {} end)
      + (if $location != "" then {location: $location} else {} end)
-     + (if $locale != "" then {locale: $locale} else {} end)')
+     + (if $locale != "" then {locale: $locale} else {} end)
+     + (if $max_tests_at_once != null then {max_tests_at_once: $max_tests_at_once} else {} end)')
   # kcov-ignore-end
 else
   # kcov-ignore-start
@@ -1178,6 +1196,7 @@ else
     --argjson labels "$LABELS_JSON" \
     --argjson folder_ids "$FOLDER_IDS_JSON" \
     --argjson folder_paths "$FOLDER_PATHS_JSON" \
+    --argjson max_tests_at_once "$MAX_CONCURRENCY_JSON" \
     '{bundle_id: $bundle_id, platform: $platform, repo_full_name: $repo_full_name, ref: $ref}
      + (if $app_id != "" then {app_id: $app_id} else {} end)
      + (if $key_selector_mode == "true"
@@ -1201,7 +1220,8 @@ else
             | if . == {} then {} else {match: .} end))}
         else {} end)
      + (if $location != "" then {location: $location} else {} end)
-     + (if $locale != "" then {locale: $locale} else {} end)')
+     + (if $locale != "" then {locale: $locale} else {} end)
+     + (if $max_tests_at_once != null then {max_tests_at_once: $max_tests_at_once} else {} end)')
   # kcov-ignore-end
 fi
 

@@ -111,6 +111,9 @@ inputs:
   dependencies:
     description: "[Web runs only] JSON array overriding the app's default extension loadout for this run. Omit to inherit defaults; use [] for none; entries may be app UUID strings or {\"app_id\":\"...\",\"app_build_id\":\"...\"} pins. Not supported with suite-keys, folder-paths, mobile, or Chrome extension uploads."
     required: false
+  max-concurrency:
+    description: "Whole number from 1 to 1000. Of the tests this step starts, at most this many run concurrently. The rest wait. Overrides each suite's saved limit for this run. Applies when an ID, key, folder, or label selector triggers tests. Runs that an upload starts use the limit saved on each automation."
+    required: false
   wait:
     description: "Wait for triggered flows to finish and gate the job on their result (default: true). Set to 'false' to trigger the flows, print their run links, and exit immediately without blocking CI. Applies when an ID, key, folder, or label selector triggers tests."
     required: false
@@ -166,4 +169,5 @@ runs:
         FOLDER_PATHS: ${{ inputs.folder-paths }}
         WEB_BROWSER: ${{ inputs.web-browser }}
         DEPENDENCIES: ${{ inputs.dependencies }}
+        MAX_CONCURRENCY: ${{ inputs.max-concurrency }}
         WAIT: ${{ inputs.wait }}
